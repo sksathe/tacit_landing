@@ -178,7 +178,7 @@ const EmailToMeeting = () => {
 
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold mb-4">Setup Tacit Session</h1>
+            <h1 className="text-4xl font-bold mb-4">Login / Signup</h1>
             <p className="text-muted-foreground text-lg">
               Paste your email and let AI extract meeting details automatically
             </p>

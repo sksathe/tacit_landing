@@ -7,9 +7,9 @@ const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   const navigation = [
-    { name: "Product", href: "#features" },
-    { name: "How it Works", href: "#how-it-works" },
-    { name: "Setup Tacit Session", href: "/setup-session" },
+    { name: "Product", href: "#features", isExternal: false },
+    { name: "How it Works", href: "#how-it-works", isExternal: false },
+    { name: "Login / Signup", href: "/dashboard", isExternal: false },
   ];
 
   return (

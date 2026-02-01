@@ -68,7 +68,8 @@ const SetupSession = () => {
         description: `Knowledge extraction session invitation has been sent to ${formData.inviteEmail}`,
       });
 
-      navigate("/session/demo");
+      // Redirect to dashboard
+      navigate("/dashboard");
     } catch (error) {
       console.error("Error sending to webhook:", error);
       toast({

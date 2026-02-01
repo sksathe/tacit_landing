@@ -91,7 +91,7 @@ const Hero = () => {
               <Button 
                 size="lg" 
                 className="bg-gradient-primary hover:shadow-floating transition-smooth text-lg px-8 text-primary-foreground shadow-floating animate-float"
-                onClick={() => navigate("/setup-session")}
+                onClick={() => navigate("/dashboard")}
               >
                 Start Extracting Knowledge
                 <ArrowRight className="ml-2 h-5 w-5" />
