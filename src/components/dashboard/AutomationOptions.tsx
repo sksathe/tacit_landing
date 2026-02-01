@@ -48,30 +48,30 @@ export function AutomationOptions({ onOpenConfigDrawer }: AutomationOptionsProps
 
   return (
     <div className="mt-12">
-      <h3 className="text-[1.8rem] font-extrabold text-[#10b981] mb-8">Available Automations</h3>
+      <h3 className="text-[1.8rem] font-extrabold text-primary mb-8">Available Automations</h3>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6">
         {automations.map((automation) => {
           const isProcessing = processingAutomations.has(automation.id);
           return (
             <div
               key={automation.id}
-              className="bg-[rgba(42,42,42,0.5)] border-2 border-[rgba(16,185,129,0.3)] rounded-2xl p-8 transition-all hover:border-[#10b981] hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(16,185,129,0.2)]"
+              className="bg-card/50 border-2 border-primary/30 rounded-2xl p-8 transition-all hover:border-primary hover:-translate-y-1 hover:shadow-elegant"
             >
               <div className="text-[2.5rem] mb-4">{automation.icon}</div>
-              <h4 className="text-[1.3rem] font-bold text-white mb-3">{automation.title}</h4>
-              <p className="text-[#a0a0a0] text-[0.95rem] mb-6 leading-relaxed">{automation.description}</p>
+              <h4 className="text-[1.3rem] font-bold text-foreground mb-3">{automation.title}</h4>
+              <p className="text-muted-foreground text-[0.95rem] mb-6 leading-relaxed">{automation.description}</p>
               <button
                 onClick={() => onOpenConfigDrawer(automation.id, automation.title, automation.icon)}
                 disabled={isProcessing}
-                className={`bg-transparent border-2 border-[#10b981] text-[#10b981] px-7 py-3 rounded-[20px] text-[0.9rem] font-semibold cursor-pointer transition-all uppercase tracking-wide ${
+                className={`bg-transparent border-2 border-primary text-primary px-7 py-3 rounded-[20px] text-[0.9rem] font-semibold cursor-pointer transition-all uppercase tracking-wide ${
                   isProcessing
-                    ? "opacity-60 cursor-not-allowed bg-transparent border-[rgba(16,185,129,0.5)]"
-                    : "hover:bg-[#10b981] hover:text-[#0a0a0a] hover:shadow-[0_4px_15px_rgba(16,185,129,0.4)]"
+                    ? "opacity-60 cursor-not-allowed bg-transparent border-primary/50"
+                    : "hover:bg-primary hover:text-primary-foreground hover:shadow-elegant"
                 }`}
               >
                 {isProcessing ? (
                   <span className="flex items-center justify-center gap-2">
-                    <span className="w-4 h-4 border-2 border-[rgba(16,185,129,0.3)] border-t-[#10b981] rounded-full animate-spin" />
+                    <span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
                     <span>Processing...</span>
                   </span>
                 ) : (

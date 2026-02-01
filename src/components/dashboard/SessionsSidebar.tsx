@@ -24,29 +24,29 @@ export function SessionsSidebar({ isOpen, onClose, onSessionClick }: SessionsSid
 
   return (
     <div
-      className={`fixed left-0 top-0 w-[280px] h-screen bg-[rgba(20,20,20,0.98)] border-r border-[rgba(16,185,129,0.3)] transform transition-transform duration-300 z-[999] pt-20 pb-8 overflow-y-auto backdrop-blur-[10px] ${
+      className={`fixed left-0 top-0 w-[280px] h-screen bg-background/98 border-r border-primary/30 transform transition-transform duration-300 z-[999] pt-20 pb-8 overflow-y-auto backdrop-blur-[10px] ${
         isOpen ? "translate-x-0" : "-translate-x-full"
       }`}
     >
       <button
         onClick={onClose}
-        className="absolute top-6 right-6 w-[50px] h-[50px] rounded-xl bg-[rgba(16,185,129,0.15)] border-2 border-[rgba(16,185,129,0.3)] text-[#10b981] text-[1.8rem] font-normal flex items-center justify-center cursor-pointer transition-all hover:bg-[rgba(16,185,129,0.25)] hover:border-[#10b981] hover:shadow-[0_0_15px_rgba(16,185,129,0.3)] z-[1000] leading-none"
+        className="absolute top-6 right-6 w-[50px] h-[50px] rounded-xl bg-primary/15 border-2 border-primary/30 text-primary text-[1.8rem] font-normal flex items-center justify-center cursor-pointer transition-all hover:bg-primary/25 hover:border-primary hover:shadow-glow z-[1000] leading-none"
       >
-        <X className="w-6 h-6 stroke-[#10b981] stroke-[2]" />
+        <X className="w-6 h-6 stroke-primary stroke-[2]" />
       </button>
 
       <div className="mb-8">
-        <div className="text-[0.75rem] font-bold text-[rgba(16,185,129,0.6)] uppercase tracking-[1.5px] px-6 mb-4">
+        <div className="text-[0.75rem] font-bold text-primary/60 uppercase tracking-[1.5px] px-6 mb-4">
           Past Sessions
         </div>
 
         <div className="mb-2">
           <div
             onClick={() => toggleGroup("agentA")}
-            className={`flex items-center gap-3 px-6 py-3.5 text-white cursor-pointer transition-all border-l-[3px] ${
+            className={`flex items-center gap-3 px-6 py-3.5 text-foreground cursor-pointer transition-all border-l-[3px] ${
               expandedGroups.agentA
-                ? "bg-[rgba(16,185,129,0.1)] text-[#10b981] border-l-[rgba(16,185,129,0.5)]"
-                : "border-l-transparent hover:bg-[rgba(16,185,129,0.08)] hover:border-l-[rgba(16,185,129,0.5)]"
+                ? "bg-primary/10 text-primary border-l-primary/50"
+                : "border-l-transparent hover:bg-primary/8 hover:border-l-primary/50"
             }`}
           >
             <span className="text-[1.2rem] w-6 flex items-center justify-center">👩</span>
@@ -54,22 +54,22 @@ export function SessionsSidebar({ isOpen, onClose, onSessionClick }: SessionsSid
             <span className={`text-[0.75rem] transition-transform duration-300 ${expandedGroups.agentA ? "rotate-90" : ""}`}>▶</span>
           </div>
           {expandedGroups.agentA && (
-            <div className="flex flex-col bg-[rgba(0,0,0,0.2)]">
+            <div className="flex flex-col bg-background/20">
               <div
                 onClick={() => onSessionClick("Agent A", "Session 1 - Finance", "SID-2024-001")}
-                className="flex items-center gap-3 px-6 py-3 pl-12 text-[#a0a0a0] cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-[rgba(16,185,129,0.08)] hover:text-white hover:border-l-[rgba(16,185,129,0.5)] text-[0.9rem]"
+                className="flex items-center gap-3 px-6 py-3 pl-12 text-muted-foreground cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-primary/8 hover:text-foreground hover:border-l-primary/50 text-[0.9rem]"
               >
                 Session 1 - Finance
               </div>
               <div
                 onClick={() => onSessionClick("Agent A", "Session 2 - Operations", "SID-2024-002")}
-                className="flex items-center gap-3 px-6 py-3 pl-12 text-[#a0a0a0] cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-[rgba(16,185,129,0.08)] hover:text-white hover:border-l-[rgba(16,185,129,0.5)] text-[0.9rem]"
+                className="flex items-center gap-3 px-6 py-3 pl-12 text-muted-foreground cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-primary/8 hover:text-foreground hover:border-l-primary/50 text-[0.9rem]"
               >
                 Session 2 - Operations
               </div>
               <div
                 onClick={() => onSessionClick("Agent A", "Session 3 - Compliance", "SID-2024-003")}
-                className="flex items-center gap-3 px-6 py-3 pl-12 text-[#a0a0a0] cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-[rgba(16,185,129,0.08)] hover:text-white hover:border-l-[rgba(16,185,129,0.5)] text-[0.9rem]"
+                className="flex items-center gap-3 px-6 py-3 pl-12 text-muted-foreground cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-primary/8 hover:text-foreground hover:border-l-primary/50 text-[0.9rem]"
               >
                 Session 3 - Compliance
               </div>
@@ -94,13 +94,13 @@ export function SessionsSidebar({ isOpen, onClose, onSessionClick }: SessionsSid
             <div className="flex flex-col bg-[rgba(0,0,0,0.2)]">
               <div
                 onClick={() => onSessionClick("Agent B", "Session 1 - Data Analysis", "SID-2024-004")}
-                className="flex items-center gap-3 px-6 py-3 pl-12 text-[#a0a0a0] cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-[rgba(16,185,129,0.08)] hover:text-white hover:border-l-[rgba(16,185,129,0.5)] text-[0.9rem]"
+                className="flex items-center gap-3 px-6 py-3 pl-12 text-muted-foreground cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-primary/8 hover:text-foreground hover:border-l-primary/50 text-[0.9rem]"
               >
                 Session 1 - Data Analysis
               </div>
               <div
                 onClick={() => onSessionClick("Agent B", "Session 2 - Strategy", "SID-2024-005")}
-                className="flex items-center gap-3 px-6 py-3 pl-12 text-[#a0a0a0] cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-[rgba(16,185,129,0.08)] hover:text-white hover:border-l-[rgba(16,185,129,0.5)] text-[0.9rem]"
+                className="flex items-center gap-3 px-6 py-3 pl-12 text-muted-foreground cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-primary/8 hover:text-foreground hover:border-l-primary/50 text-[0.9rem]"
               >
                 Session 2 - Strategy
               </div>
@@ -110,7 +110,7 @@ export function SessionsSidebar({ isOpen, onClose, onSessionClick }: SessionsSid
       </div>
 
       <div className="mb-8">
-        <div className="text-[0.75rem] font-bold text-[rgba(16,185,129,0.6)] uppercase tracking-[1.5px] px-6 mb-4">
+        <div className="text-[0.75rem] font-bold text-primary/60 uppercase tracking-[1.5px] px-6 mb-4">
           Automations
         </div>
 

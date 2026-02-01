@@ -50,7 +50,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0a0a0a] to-[#1a1a1a] text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <DashboardHeader />
       
       {/* Hamburger Menu Button */}
@@ -58,11 +58,11 @@ const Dashboard = () => {
         onClick={toggleSidebar}
         className={`fixed top-6 left-6 w-[50px] h-[50px] flex flex-col justify-center items-center gap-1.5 p-2.5 rounded-xl transition-all z-[1001] ${
           isSidebarOpen ? "opacity-0 pointer-events-none" : ""
-        } bg-[rgba(16,185,129,0.15)] border-2 border-[rgba(16,185,129,0.3)] hover:bg-[rgba(16,185,129,0.25)] hover:border-[#10b981] hover:shadow-[0_0_15px_rgba(16,185,129,0.3)]`}
+        } bg-primary/15 border-2 border-primary/30 hover:bg-primary/25 hover:border-primary hover:shadow-glow`}
       >
-        <span className="w-6 h-0.5 bg-[#10b981] rounded-sm transition-all" />
-        <span className="w-6 h-0.5 bg-[#10b981] rounded-sm transition-all" />
-        <span className="w-6 h-0.5 bg-[#10b981] rounded-sm transition-all" />
+        <span className="w-6 h-0.5 bg-primary rounded-sm transition-all" />
+        <span className="w-6 h-0.5 bg-primary rounded-sm transition-all" />
+        <span className="w-6 h-0.5 bg-primary rounded-sm transition-all" />
       </button>
 
       {/* Sidebar */}
@@ -76,7 +76,7 @@ const Dashboard = () => {
       {isSidebarOpen && (
         <div
           onClick={toggleSidebar}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[998]"
+          className="fixed inset-0 bg-background/50 backdrop-blur-sm z-[998]"
         />
       )}
 
