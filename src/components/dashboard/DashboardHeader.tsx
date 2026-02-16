@@ -1,8 +1,12 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 export function DashboardHeader() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -16,13 +20,15 @@ export function DashboardHeader() {
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setIsDropdownOpen(false);
     if (confirm("Are you sure you want to logout?")) {
-      // Handle logout
-      window.location.href = "/";
+      await logout();
+      navigate("/");
     }
   };
+
+  const userInitial = user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U";
 
   return (
     <header className="bg-background/95 backdrop-blur-[10px] border-b border-primary/20 px-8 py-6 sticky top-0 z-[1000]">
@@ -52,13 +58,15 @@ export function DashboardHeader() {
           <span>Tacit Studio</span>
         </div>
         <div className="flex items-center gap-6">
-          <span className="text-muted-foreground text-[0.95rem]">Welcome back!</span>
+          <span className="text-muted-foreground text-[0.95rem]">
+            Welcome back{user?.name ? `, ${user.name}` : ""}!
+          </span>
           <div className="relative user-avatar-container">
             <div
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               className="w-[45px] h-[45px] rounded-full bg-gradient-primary flex items-center justify-center font-bold text-[1.1rem] text-primary-foreground cursor-pointer transition-all hover:scale-105 hover:shadow-glow"
             >
-              U
+              {userInitial}
             </div>
             {isDropdownOpen && (
               <div className="absolute top-[55px] right-0 bg-card/95 border border-primary/30 rounded-lg py-2 min-w-[150px] z-[1000] backdrop-blur-[10px]">
