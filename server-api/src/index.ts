@@ -1,5 +1,36 @@
-import 'dotenv/config';
+import { config } from 'dotenv';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { existsSync } from 'node:fs';
 import express from 'express';
+
+// Get the directory of the current file (server-api/src)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Try multiple possible .env file locations
+const possiblePaths = [
+  resolve(__dirname, '..', '.env'), // server-api/.env
+  resolve(process.cwd(), '.env'), // Current working directory
+  resolve(process.cwd(), 'server-api', '.env'), // If running from root
+];
+
+let envLoaded = false;
+for (const envPath of possiblePaths) {
+  if (existsSync(envPath)) {
+    const result = config({ path: envPath });
+    if (!result.error) {
+      envLoaded = true;
+      console.log('✅ Loaded .env from:', envPath);
+      break;
+    }
+  }
+}
+
+if (!envLoaded) {
+  console.error('⚠️ Could not find .env file. Tried:', possiblePaths);
+}
+
 import cors from 'cors';
 import projectsRouter from './routes/projects.js';
 import meetingsRouter from './routes/meetings.js';
@@ -7,11 +38,28 @@ import sessionsRouter from './routes/sessions.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:5173';
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:8080';
 
-// Middleware
+// Middleware - Allow multiple origins in development
+const allowedOrigins = [
+  FRONTEND_ORIGIN,
+  'http://localhost:8080',
+  'http://localhost:5173',
+  'http://localhost:3000',
+].filter(Boolean);
+
 app.use(cors({
-  origin: FRONTEND_ORIGIN,
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`⚠️ CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 app.use(express.json());

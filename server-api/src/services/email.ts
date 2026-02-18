@@ -18,7 +18,8 @@ export interface MeetingInviteEmailParams {
 
 export async function sendMeetingInviteEmail(params: MeetingInviteEmailParams): Promise<void> {
   if (!resend) {
-    console.warn('Resend API key not configured, skipping email send');
+    console.warn('⚠️ Resend API key not configured, skipping email send');
+    console.warn('💡 Set RESEND_API_KEY in server-api/.env to enable email sending');
     return;
   }
 
@@ -41,7 +42,8 @@ Your Meeting Code: ${meetingCode}
 
 Instructions:
 1. Call our Twilio number at the scheduled time: ${TWILIO_NUMBER}
-2. When the agent answers, say your name and meeting code: "${inviteeName}, ${meetingCode}"
+2. When the agent answers, say your 4-digit meeting code: "${meetingCode}"
+3. Then say your full name: "${inviteeName}"
 
 The AI agent will verify your identity and guide you through the knowledge capture session.
 
@@ -50,14 +52,32 @@ Tacit Team
   `.trim();
 
   try {
-    await resend.emails.send({
-      from: 'Tacit <noreply@tacit.ai>', // Update with your verified domain
+    const result = await resend.emails.send({
+      from: 'Tacit <noreply@scenergy.design>', // Use Resend's test domain for now
       to: inviteeEmail,
       subject: `Tacit Session Invitation: ${meetingTitle}`,
       text: emailBody,
     });
-  } catch (error) {
-    console.error('Failed to send email:', error);
-    throw new Error('Failed to send meeting invite email');
+    
+    console.log(`✅ Email sent successfully to ${inviteeEmail}:`, result.id);
+  } catch (error: any) {
+    // Log detailed error but don't throw - meeting creation should succeed even if email fails
+    console.error(`❌ Failed to send email to ${inviteeEmail}:`, error);
+    console.error('Error details:', {
+      message: error?.message,
+      name: error?.name,
+      statusCode: error?.statusCode,
+    });
+    
+    // Provide helpful error message
+    if (error?.message?.includes('domain')) {
+      console.error('💡 Tip: Verify your domain in Resend dashboard or use onboarding@resend.dev for testing');
+    }
+    if (error?.message?.includes('API key')) {
+      console.error('💡 Tip: Check your RESEND_API_KEY in server-api/.env');
+    }
+    
+    // Don't throw - let meeting creation succeed even if email fails
+    // The error is already logged for debugging
   }
 }

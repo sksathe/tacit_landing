@@ -23,11 +23,10 @@ const Login = () => {
 
     try {
       if (isSignUp) {
-        // Use default password "dummy@123" for all signups
-        await signUp(email, 'dummy@123');
+        await signUp(email, password);
         toast({
           title: "Account created!",
-          description: "Your account has been created with default password. Contact an admin to get access to organizations and projects.",
+          description: "Your account has been created successfully. Contact an admin to get access to organizations and projects.",
         });
         // If email confirmation is disabled, user is automatically logged in
         // Check if we have a session (user will be set in AuthContext)
@@ -35,17 +34,7 @@ const Login = () => {
           navigate("/dashboard");
         }, 1000);
       } else {
-        // For login, try default password first, then user-provided password
-        try {
-          await login(email, password);
-        } catch (loginError: any) {
-          // If login fails, try with default password
-          if (password !== 'dummy@123') {
-            await login(email, 'dummy@123');
-          } else {
-            throw loginError;
-          }
-        }
+        await login(email, password);
         toast({
           title: "Welcome back!",
           description: "You've been successfully logged in.",
@@ -53,9 +42,10 @@ const Login = () => {
         navigate("/dashboard");
       }
     } catch (error: any) {
+      console.error('❌ Authentication error:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to authenticate. Please try again.",
+        title: "Authentication Failed",
+        description: error.message || "Failed to authenticate. Please check your credentials and try again.",
         variant: "destructive",
       });
     } finally {

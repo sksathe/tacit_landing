@@ -49,25 +49,59 @@ CREATE POLICY "Users can create projects in orgs they belong to"
     );
 
 -- RLS Policies for project_members
+-- Fix: Use security definer functions to avoid infinite recursion
+CREATE OR REPLACE FUNCTION user_is_project_member(p_project_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+    SELECT EXISTS (
+        SELECT 1 
+        FROM project_members 
+        WHERE project_id = p_project_id 
+        AND user_id = auth.uid()
+    );
+$$;
+
+CREATE OR REPLACE FUNCTION user_is_project_admin(p_project_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+    SELECT EXISTS (
+        SELECT 1 
+        FROM project_members 
+        WHERE project_id = p_project_id 
+        AND user_id = auth.uid() 
+        AND role IN ('owner', 'admin')
+    );
+$$;
+
+-- Grant execute permissions
+GRANT EXECUTE ON FUNCTION user_is_project_member(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION user_is_project_member(UUID) TO anon;
+GRANT EXECUTE ON FUNCTION user_is_project_admin(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION user_is_project_admin(UUID) TO anon;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can read project members" ON project_members;
+DROP POLICY IF EXISTS "Users can insert project members" ON project_members;
+
 CREATE POLICY "Users can read project members"
     ON project_members FOR SELECT
     USING (
-        project_id IN (
-            SELECT project_id 
-            FROM project_members 
-            WHERE user_id = auth.uid()
-        )
+        user_id = auth.uid() -- Users can always see their own membership
+        OR user_is_project_member(project_id) -- Or if they're a member of the project
     );
 
 CREATE POLICY "Users can insert project members"
     ON project_members FOR INSERT
     WITH CHECK (
-        project_id IN (
-            SELECT project_id 
-            FROM project_members 
-            WHERE user_id = auth.uid() 
-            AND role IN ('owner', 'admin')
-        )
+        user_is_project_admin(project_id) -- User must be owner/admin of the project
     );
 
 -- RLS Policies for meetings

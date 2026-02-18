@@ -6,15 +6,25 @@ export const CreateOrGetCallSessionSchema = z.object({
   spoken_name: z.string().optional(),
   caller_phone: z.string().optional(),
   elevenlabs_conversation_id: z.string().optional(),
-  now_iso: z.string().datetime(),
-  idempotency_key: z.string(),
+  now_iso: z.string().datetime().optional(), // Auto-generated if not provided
+  idempotency_key: z.string().optional(), // Auto-generated if not provided
 });
 
 export const VerifySpokenJoinSchema = z.object({
   call_session_id: z.string().uuid(),
   spoken_name: z.string(),
   meeting_code: z.string(),
-  idempotency_key: z.string(),
+  idempotency_key: z.string().optional(), // Auto-generated if not provided
+});
+
+// New schema: Verify user first, then create session
+export const VerifyUserAndStartSessionSchema = z.object({
+  meeting_code: z.string(),
+  spoken_name: z.string(),
+  caller_phone: z.string().optional(),
+  elevenlabs_conversation_id: z.string().optional(),
+  now_iso: z.string().datetime().optional(), // Auto-generated if not provided
+  idempotency_key: z.string().optional(), // Auto-generated if not provided
 });
 
 export const GetMeetingContextSchema = z.object({
@@ -25,7 +35,7 @@ export const PersistTranscriptSchema = z.object({
   call_session_id: z.string().uuid(),
   raw_transcript: z.any(), // JSON
   normalized_transcript: z.any().optional(), // JSON
-  idempotency_key: z.string(),
+  idempotency_key: z.string().optional(), // Auto-generated if not provided
 });
 
 export const PersistSummarySchema = z.object({
@@ -34,7 +44,7 @@ export const PersistSummarySchema = z.object({
   summary_text: z.string(),
   key_points: z.array(z.string()),
   action_items: z.array(z.any()),
-  idempotency_key: z.string(),
+  idempotency_key: z.string().optional(), // Auto-generated if not provided
 });
 
 export const FinalizeCallSessionSchema = z.object({
@@ -42,14 +52,14 @@ export const FinalizeCallSessionSchema = z.object({
   ended_at_iso: z.string().datetime(),
   duration_sec: z.number().optional(),
   status: z.enum(['completed', 'failed']),
-  idempotency_key: z.string(),
+  idempotency_key: z.string().optional(), // Auto-generated if not provided
 });
 
 export const GenerateSummaryFromTranscriptSchema = z.object({
   call_session_id: z.string().uuid(),
   transcript: z.any(),
   model: z.string().default('gpt-4'),
-  idempotency_key: z.string(),
+  idempotency_key: z.string().optional(), // Auto-generated if not provided
 });
 
 // MCP Tool Response Types
@@ -71,6 +81,24 @@ export interface VerifySpokenJoinResponse {
     invitee_name: string;
     project_name: string;
   };
+}
+
+export interface VerifyUserAndStartSessionResponse {
+  verified?: boolean; // Explicit boolean: true when verified, false when failed
+  success?: boolean; // Explicit success indicator (true when verified)
+  status: 'verified' | 'verification_failed';
+  attempts_left: number;
+  message_for_user: string;
+  say_to_user?: string; // Explicit field telling agent what to say (same as message_for_user)
+  call_session_id: string | null;
+  meeting_context: {
+    title: string;
+    agenda: string | null;
+    invitee_name: string;
+    project_name: string;
+  } | null;
+  agent_instruction?: string; // Explicit instruction for the agent on what to say
+  verification_successful?: boolean; // Explicit verification success indicator
 }
 
 export interface GetMeetingContextResponse {

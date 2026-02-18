@@ -10,7 +10,8 @@ export async function createOrGetCallSession(
 
   // Normalize meeting code
   const meetingCodeNorm = normalizeMeetingCode(meeting_code);
-  const now = new Date(now_iso);
+  // Use provided now_iso or current time
+  const now = now_iso ? new Date(now_iso) : new Date();
 
   // Find meeting within time window (start-30m to end+60m)
   const timeWindowStart = new Date(now.getTime() - 30 * 60 * 1000); // 30 minutes before now

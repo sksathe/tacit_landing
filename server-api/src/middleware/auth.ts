@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { supabaseAnon } from '../services/supabase.js';
+import { supabaseAnon, createAuthenticatedClient } from '../services/supabase.js';
 
 export interface AuthenticatedRequest extends Request {
   userId?: string;
@@ -24,12 +24,15 @@ export async function authMiddleware(
     const { data: { user }, error } = await supabaseAnon.auth.getUser(token);
 
     if (error || !user) {
+      console.error('❌ Auth verification failed:', error);
       res.status(401).json({ error: 'Invalid or expired token' });
       return;
     }
 
     req.userId = user.id;
-    req.supabaseClient = supabaseAnon; // Use anon client with user context
+    // Create authenticated client with JWT token for RLS
+    req.supabaseClient = createAuthenticatedClient(token);
+    console.log('✅ Authenticated user:', user.id, user.email);
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);

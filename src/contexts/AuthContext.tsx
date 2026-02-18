@@ -55,19 +55,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const login = async (email: string, password: string) => {
+        console.log('🔐 Attempting login for:', email);
+        console.log('🔑 Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+        console.log('🔑 Has publishable key:', !!import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
+        
         const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
         });
 
         if (error) {
-            // If error is about email not confirmed, provide helpful message
+            console.error('❌ Login error:', error);
+            console.error('❌ Error code:', error.status);
+            console.error('❌ Error message:', error.message);
+            
+            // Provide more specific error messages
+            if (error.message.includes('Invalid login credentials') || error.message.includes('invalid_credentials')) {
+                throw new Error('Invalid email or password. Please check your credentials and try again.');
+            }
+            
             if (error.message.includes('email') && error.message.includes('confirm')) {
                 throw new Error('Email not confirmed. Please check your Supabase settings to disable email confirmation, or confirm your email.');
             }
-            throw error;
+            
+            // Throw the original error with more context
+            throw new Error(`Authentication failed: ${error.message}`);
         }
 
+        console.log('✅ Login successful for:', data.user?.email);
+        
         if (data.user) {
             setUser({
                 id: data.user.id,
@@ -77,13 +93,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const signUp = async (email: string, password?: string) => {
-        // Use default password if not provided
-        const userPassword = password || 'dummy@123';
-        
+    const signUp = async (email: string, password: string) => {
         const { data, error } = await supabase.auth.signUp({
             email,
-            password: userPassword,
+            password,
             options: {
                 // Email confirmation is disabled, so user is automatically logged in
                 emailRedirectTo: undefined,

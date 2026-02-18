@@ -1,30 +1,12 @@
 /**
- * Generate a speakable meeting code
- * Format: [adjective]-[noun]-[number]
- * Example: "bright-star-42"
+ * Generate a 4-digit meeting code
+ * Format: 4-digit number (1000-9999)
+ * Example: "1234"
  */
 export function generateMeetingCode(): string {
-  const adjectives = [
-    'bright', 'swift', 'calm', 'bold', 'clear', 'quick', 'sharp', 'wise',
-    'brave', 'calm', 'cool', 'deep', 'fast', 'firm', 'fresh', 'grand',
-    'great', 'happy', 'huge', 'kind', 'loud', 'neat', 'nice', 'proud',
-    'quiet', 'rapid', 'real', 'rich', 'smart', 'solid', 'sweet', 'tall',
-    'warm', 'wild', 'wise', 'young', 'zest', 'zen', 'zest', 'zest'
-  ];
-
-  const nouns = [
-    'star', 'moon', 'wave', 'peak', 'lake', 'river', 'ocean', 'cloud',
-    'storm', 'light', 'flame', 'stone', 'crown', 'sword', 'shield', 'arrow',
-    'eagle', 'lion', 'wolf', 'bear', 'hawk', 'fox', 'deer', 'dove',
-    'rose', 'oak', 'pine', 'maple', 'cedar', 'birch', 'willow', 'ash',
-    'rock', 'gem', 'pearl', 'diamond', 'crystal', 'amber', 'jade', 'opal'
-  ];
-
-  const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
-  const noun = nouns[Math.floor(Math.random() * nouns.length)];
-  const number = Math.floor(Math.random() * 999) + 1;
-
-  return `${adjective}-${noun}-${number}`;
+  // Generate random 4-digit number (1000-9999)
+  const code = Math.floor(Math.random() * 9000) + 1000;
+  return code.toString();
 }
 
 /**

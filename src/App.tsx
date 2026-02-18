@@ -23,6 +23,22 @@ const App = () => {
     document.documentElement.classList.add('dark');
     // Clear any old localStorage user data
     localStorage.removeItem("user");
+    
+    // Test Supabase connection
+    const testSupabaseConnection = async () => {
+      try {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          console.warn('⚠️ Supabase connection test:', error.message);
+        } else {
+          console.log('✅ Supabase connection successful');
+        }
+      } catch (err) {
+        console.error('❌ Failed to test Supabase connection:', err);
+      }
+    };
+    testSupabaseConnection();
   }, []);
 
   return (
