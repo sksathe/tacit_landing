@@ -96,6 +96,16 @@ export const CreateProjectSchema = z.object({
   name: z.string().min(1),
 });
 
+export const CreateMeetingAgentSchema = z.object({
+  name: z.string().min(1),
+  tagline: z.string(),
+  role: z.string(),
+  persona: z.string(),
+  description: z.string(),
+  descriptionContinued: z.string().optional(),
+  specialties: z.array(z.string()),
+});
+
 export const CreateMeetingSchema = z.object({
   project_id: z.string().uuid(),
   title: z.string().min(1),
@@ -107,6 +117,7 @@ export const CreateMeetingSchema = z.object({
     email: z.string().email(),
     phone: z.string().optional(),
   })),
+  agent: CreateMeetingAgentSchema.optional(),
 });
 
 export const UpdateMeetingSchema = z.object({

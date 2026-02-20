@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X } from "lucide-react";
+import { TACIT_AGENTS } from "@/data/agents";
 
 interface SessionsSidebarProps {
   isOpen: boolean;
@@ -7,10 +8,34 @@ interface SessionsSidebarProps {
   onSessionClick: (agentName: string, sessionName: string, sessionId: string) => void;
 }
 
+const MOCK_SESSIONS: Record<string, { sessionName: string; sessionId: string }[]> = {
+  rachael: [
+    { sessionName: "Finance Review", sessionId: "SID-rachael-2024-001" },
+    { sessionName: "Budget Planning", sessionId: "SID-rachael-2024-002" },
+    { sessionName: "Q4 Forecast", sessionId: "SID-rachael-2024-003" },
+  ],
+  ross: [
+    { sessionName: "Compliance Review", sessionId: "SID-ross-2024-001" },
+    { sessionName: "Policy Update", sessionId: "SID-ross-2024-002" },
+    { sessionName: "Audit Prep", sessionId: "SID-ross-2024-003" },
+  ],
+  monica: [
+    { sessionName: "Operations Runbook", sessionId: "SID-monica-2024-001" },
+    { sessionName: "Process Documentation", sessionId: "SID-monica-2024-002" },
+  ],
+  chandler: [
+    { sessionName: "Data Analysis", sessionId: "SID-chandler-2024-001" },
+    { sessionName: "Metrics Review", sessionId: "SID-chandler-2024-002" },
+    { sessionName: "Dashboard Design", sessionId: "SID-chandler-2024-003" },
+  ],
+};
+
 export function SessionsSidebar({ isOpen, onClose, onSessionClick }: SessionsSidebarProps) {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    agentA: false,
-    agentB: false,
+    rachael: false,
+    ross: false,
+    monica: false,
+    chandler: false,
     allAutomations: false,
     drafts: false,
   });
@@ -36,81 +61,47 @@ export function SessionsSidebar({ isOpen, onClose, onSessionClick }: SessionsSid
       </button>
 
       <div className="mb-8">
-        <div className="text-[0.75rem] font-bold text-primary/60 uppercase tracking-[1.5px] px-6 mb-4">
+        <div className="text-[0.75rem] font-bold text-primary-dashboard/60 uppercase tracking-[1.5px] px-6 mb-4">
           Past Sessions
         </div>
 
-        <div className="mb-2">
-          <div
-            onClick={() => toggleGroup("agentA")}
-            className={`flex items-center gap-3 px-6 py-3.5 text-foreground cursor-pointer transition-all border-l-[3px] ${
-              expandedGroups.agentA
-                ? "bg-primary/10 text-primary border-l-primary/50"
-                : "border-l-transparent hover:bg-primary/8 hover:border-l-primary/50"
-            }`}
-          >
-            <span className="text-[1.2rem] w-6 flex items-center justify-center">👩</span>
-            <span className="flex-1 font-semibold text-[0.95rem]">Agent A</span>
-            <span className={`text-[0.75rem] transition-transform duration-300 ${expandedGroups.agentA ? "rotate-90" : ""}`}>▶</span>
-          </div>
-          {expandedGroups.agentA && (
-            <div className="flex flex-col bg-background/20">
+        {TACIT_AGENTS.map((agent) => {
+          const sessions = MOCK_SESSIONS[agent.id] ?? [];
+          const expanded = expandedGroups[agent.id];
+          return (
+            <div key={agent.id} className="mb-2">
               <div
-                onClick={() => onSessionClick("Agent A", "Session 1 - Finance", "SID-2024-001")}
-                className="flex items-center gap-3 px-6 py-3 pl-12 text-muted-foreground cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-primary/8 hover:text-foreground hover:border-l-primary/50 text-[0.9rem]"
+                onClick={() => toggleGroup(agent.id)}
+                className={`flex items-center gap-3 px-6 py-3.5 text-foreground cursor-pointer transition-all border-l-[3px] ${
+                  expanded
+                    ? "bg-primary/10 text-primary border-l-primary/50"
+                    : "border-l-transparent hover:bg-primary/8 hover:border-l-primary/50"
+                }`}
               >
-                Session 1 - Finance
+                <span className="text-[1.2rem] w-6 flex items-center justify-center">{agent.icon}</span>
+                <span className="flex-1 font-semibold text-[0.95rem]">{agent.name}</span>
+                <span className={`text-[0.75rem] transition-transform duration-300 ${expanded ? "rotate-90" : ""}`}>▶</span>
               </div>
-              <div
-                onClick={() => onSessionClick("Agent A", "Session 2 - Operations", "SID-2024-002")}
-                className="flex items-center gap-3 px-6 py-3 pl-12 text-muted-foreground cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-primary/8 hover:text-foreground hover:border-l-primary/50 text-[0.9rem]"
-              >
-                Session 2 - Operations
-              </div>
-              <div
-                onClick={() => onSessionClick("Agent A", "Session 3 - Compliance", "SID-2024-003")}
-                className="flex items-center gap-3 px-6 py-3 pl-12 text-muted-foreground cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-primary/8 hover:text-foreground hover:border-l-primary/50 text-[0.9rem]"
-              >
-                Session 3 - Compliance
-              </div>
+              {expanded && (
+                <div className="flex flex-col bg-background/20">
+                  {sessions.map((s) => (
+                    <div
+                      key={s.sessionId}
+                      onClick={() => onSessionClick(agent.name, s.sessionName, s.sessionId)}
+                      className="flex items-center gap-3 px-6 py-3 pl-12 text-muted-foreground cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-primary/8 hover:text-foreground hover:border-l-primary/50 text-[0.9rem]"
+                    >
+                      {s.sessionName}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-
-        <div className="mb-2">
-          <div
-            onClick={() => toggleGroup("agentB")}
-            className={`flex items-center gap-3 px-6 py-3.5 text-white cursor-pointer transition-all border-l-[3px] ${
-              expandedGroups.agentB
-                ? "bg-[rgba(16,185,129,0.1)] text-[#10b981] border-l-[rgba(16,185,129,0.5)]"
-                : "border-l-transparent hover:bg-[rgba(16,185,129,0.08)] hover:border-l-[rgba(16,185,129,0.5)]"
-            }`}
-          >
-            <span className="text-[1.2rem] w-6 flex items-center justify-center">👨</span>
-            <span className="flex-1 font-semibold text-[0.95rem]">Agent B</span>
-            <span className={`text-[0.75rem] transition-transform duration-300 ${expandedGroups.agentB ? "rotate-90" : ""}`}>▶</span>
-          </div>
-          {expandedGroups.agentB && (
-            <div className="flex flex-col bg-[rgba(0,0,0,0.2)]">
-              <div
-                onClick={() => onSessionClick("Agent B", "Session 1 - Data Analysis", "SID-2024-004")}
-                className="flex items-center gap-3 px-6 py-3 pl-12 text-muted-foreground cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-primary/8 hover:text-foreground hover:border-l-primary/50 text-[0.9rem]"
-              >
-                Session 1 - Data Analysis
-              </div>
-              <div
-                onClick={() => onSessionClick("Agent B", "Session 2 - Strategy", "SID-2024-005")}
-                className="flex items-center gap-3 px-6 py-3 pl-12 text-muted-foreground cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-primary/8 hover:text-foreground hover:border-l-primary/50 text-[0.9rem]"
-              >
-                Session 2 - Strategy
-              </div>
-            </div>
-          )}
-        </div>
+          );
+        })}
       </div>
 
       <div className="mb-8">
-        <div className="text-[0.75rem] font-bold text-primary/60 uppercase tracking-[1.5px] px-6 mb-4">
+        <div className="text-[0.75rem] font-bold text-primary-dashboard/60 uppercase tracking-[1.5px] px-6 mb-4">
           Automations
         </div>
 
@@ -119,8 +110,8 @@ export function SessionsSidebar({ isOpen, onClose, onSessionClick }: SessionsSid
             onClick={() => toggleGroup("allAutomations")}
             className={`flex items-center gap-3 px-6 py-3.5 text-white cursor-pointer transition-all border-l-[3px] ${
               expandedGroups.allAutomations
-                ? "bg-[rgba(16,185,129,0.1)] text-[#10b981] border-l-[rgba(16,185,129,0.5)]"
-                : "border-l-transparent hover:bg-[rgba(16,185,129,0.08)] hover:border-l-[rgba(16,185,129,0.5)]"
+                ? "bg-primary-dashboard/10 text-primary-dashboard border-l-primary-dashboard/50"
+                : "border-l-transparent hover:bg-primary-dashboard/10 hover:border-l-primary-dashboard/50"
             }`}
           >
             <span className="text-[1.2rem] w-6 flex items-center justify-center">⚡</span>
@@ -128,14 +119,14 @@ export function SessionsSidebar({ isOpen, onClose, onSessionClick }: SessionsSid
             <span className={`text-[0.75rem] transition-transform duration-300 ${expandedGroups.allAutomations ? "rotate-90" : ""}`}>▶</span>
           </div>
           {expandedGroups.allAutomations && (
-            <div className="flex flex-col bg-[rgba(0,0,0,0.2)]">
-              <div className="flex items-center gap-3 px-6 py-3 pl-12 text-[#a0a0a0] cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-[rgba(16,185,129,0.08)] hover:text-white hover:border-l-[rgba(16,185,129,0.5)] text-[0.9rem]">
+            <div className="flex flex-col bg-black/20">
+              <div className="flex items-center gap-3 px-6 py-3 pl-12 text-muted-foreground cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-primary-dashboard/10 hover:text-foreground hover:border-l-primary-dashboard/50 text-[0.9rem]">
                 Workflow 1
               </div>
-              <div className="flex items-center gap-3 px-6 py-3 pl-12 text-[#a0a0a0] cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-[rgba(16,185,129,0.08)] hover:text-white hover:border-l-[rgba(16,185,129,0.5)] text-[0.9rem]">
+              <div className="flex items-center gap-3 px-6 py-3 pl-12 text-muted-foreground cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-primary-dashboard/10 hover:text-foreground hover:border-l-primary-dashboard/50 text-[0.9rem]">
                 Workflow 2
               </div>
-              <div className="flex items-center gap-3 px-6 py-3 pl-12 text-[#a0a0a0] cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-[rgba(16,185,129,0.08)] hover:text-white hover:border-l-[rgba(16,185,129,0.5)] text-[0.9rem]">
+              <div className="flex items-center gap-3 px-6 py-3 pl-12 text-muted-foreground cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-primary-dashboard/10 hover:text-foreground hover:border-l-primary-dashboard/50 text-[0.9rem]">
                 Workflow 3
               </div>
             </div>
@@ -147,8 +138,8 @@ export function SessionsSidebar({ isOpen, onClose, onSessionClick }: SessionsSid
             onClick={() => toggleGroup("drafts")}
             className={`flex items-center gap-3 px-6 py-3.5 text-white cursor-pointer transition-all border-l-[3px] ${
               expandedGroups.drafts
-                ? "bg-[rgba(16,185,129,0.1)] text-[#10b981] border-l-[rgba(16,185,129,0.5)]"
-                : "border-l-transparent hover:bg-[rgba(16,185,129,0.08)] hover:border-l-[rgba(16,185,129,0.5)]"
+                ? "bg-primary-dashboard/10 text-primary-dashboard border-l-primary-dashboard/50"
+                : "border-l-transparent hover:bg-primary-dashboard/10 hover:border-l-primary-dashboard/50"
             }`}
           >
             <span className="text-[1.2rem] w-6 flex items-center justify-center">📝</span>
@@ -156,11 +147,11 @@ export function SessionsSidebar({ isOpen, onClose, onSessionClick }: SessionsSid
             <span className={`text-[0.75rem] transition-transform duration-300 ${expandedGroups.drafts ? "rotate-90" : ""}`}>▶</span>
           </div>
           {expandedGroups.drafts && (
-            <div className="flex flex-col bg-[rgba(0,0,0,0.2)]">
-              <div className="flex items-center gap-3 px-6 py-3 pl-12 text-[#a0a0a0] cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-[rgba(16,185,129,0.08)] hover:text-white hover:border-l-[rgba(16,185,129,0.5)] text-[0.9rem]">
+            <div className="flex flex-col bg-black/20">
+              <div className="flex items-center gap-3 px-6 py-3 pl-12 text-muted-foreground cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-primary-dashboard/10 hover:text-foreground hover:border-l-primary-dashboard/50 text-[0.9rem]">
                 Draft Automation 1
               </div>
-              <div className="flex items-center gap-3 px-6 py-3 pl-12 text-[#a0a0a0] cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-[rgba(16,185,129,0.08)] hover:text-white hover:border-l-[rgba(16,185,129,0.5)] text-[0.9rem]">
+              <div className="flex items-center gap-3 px-6 py-3 pl-12 text-muted-foreground cursor-pointer transition-all border-l-[3px] border-l-transparent hover:bg-primary-dashboard/10 hover:text-foreground hover:border-l-primary-dashboard/50 text-[0.9rem]">
                 Draft Automation 2
               </div>
             </div>

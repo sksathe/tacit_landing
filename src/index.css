@@ -48,6 +48,29 @@ All colors MUST be HSL.
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     --radius: 0.5rem;
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+    --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+    /* Dashboard/chrome primary (emerald #10b981) - use for dashboard UI to match existing look */
+    --primary-dashboard: 160 84% 39%;
+    --primary-dashboard-foreground: 0 0% 9%;
+    --primary-dashboard-glow: 160 84% 49%;
+
+    /* Chart/status colors for badges and data viz (keep same visual) */
+    --chart-1: 142 76% 36%;
+    --chart-2: 217 91% 60%;
+
+    /* Logo hover glows (exact match for App.css) */
+    --logo-link-glow: 239 84% 67% / 0.67;
+    --logo-react-glow: 187 100% 50% / 0.67;
 
     --sidebar-background: 0 0% 98%;
 
@@ -102,6 +125,14 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    --primary-dashboard: 160 84% 49%;
+    --primary-dashboard-foreground: 0 0% 9%;
+    --primary-dashboard-glow: 160 84% 55%;
+    --chart-1: 142 76% 46%;
+    --chart-2: 217 91% 60%;
+    --logo-link-glow: 239 84% 67% / 0.67;
+    --logo-react-glow: 187 100% 50% / 0.67;
   }
 }
 

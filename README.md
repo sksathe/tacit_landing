@@ -13,6 +13,14 @@ tacit_landing/
     └── sql/               # Database migrations
 ```
 
+## How to theme
+
+The app uses a **design-token system** so you can change the look from one place.
+
+- **Edit tokens:** In the **root app** (Vite), all theme variables live in `src/index.css` under `:root` and `.dark`. In **tacit_frontend** (Next.js), they live in `tacit_frontend/src/app/globals.css`. Change `--primary`, `--background`, `--foreground`, `--muted`, `--radius`, shadows, etc. there. All colors are in HSL (e.g. `--primary: 160 84% 39%;`).
+- **Toggle dark mode:** Add or remove the `.dark` class on the root element (`<html>`). The root app sets it in code (e.g. in `App.tsx`); tacit_frontend sets it on `<html className="dark">` in `layout.tsx`. Remove the class or switch it dynamically to use light theme.
+- **Avoid hardcoded colors:** Prefer semantic Tailwind classes (`bg-primary`, `text-muted-foreground`, `border-border`) or CSS variables (`var(--primary)`) instead of hex/rgb in new code. Optional: add an ESLint `no-restricted-syntax` rule (e.g. match `Literal` with hex regex) to warn on raw hex color strings in JSX/TSX.
+
 ## System Flow
 
 1. User logs into Tacit (Supabase Auth)

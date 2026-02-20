@@ -22,6 +22,91 @@ app.use(express.json());
 // Store active SSE connections
 const activeConnections = new Map<string, express.Response>();
 
+/**
+ * MCP spec: tools/call result must be { content: [{ type: "text", text: "..." }], isError: boolean }.
+ * This is what clients (e.g. ElevenLabs) read to get the tool output for the agent.
+ */
+function toMCPToolResult(toolName: string, rawResult: Record<string, unknown>): { content: Array<{ type: 'text'; text: string }>; isError: boolean } {
+  const msg = (rawResult.message_for_user ?? rawResult.say_to_user ?? rawResult.text ?? rawResult.message) as string | undefined;
+  let text: string;
+  let isError = false;
+
+  if (toolName === 'verify_user_and_start_session') {
+    const status = rawResult.status as string | undefined;
+    isError = status === 'verification_failed' || status === 'too_early' || status === 'too_late' || rawResult.result === 'error';
+    if (status === 'verified') {
+      const ctx = rawResult.meeting_context as { title?: string; agenda?: string | null } | undefined;
+      const hints = (rawResult.agent_hints as string[] | undefined) || [];
+      const noAgenda = (rawResult.no_agenda_opening as string | null | undefined) || null;
+      const parts = [
+        msg,
+        rawResult.call_session_id && `call_session_id: ${rawResult.call_session_id} (use this for persist_transcript and finalize_call_session).`,
+        ctx?.agenda ? `Agenda: ${ctx.agenda}.` : (noAgenda ? `No agenda. Say to the user: "${noAgenda}"` : null),
+        ...hints.slice(0, 4),
+      ].filter(Boolean);
+      text = parts.join(' ');
+    } else {
+      text = typeof msg === 'string' && msg.length > 0
+        ? msg
+        : (isError ? 'Verification failed. Please try again.' : 'Verification successful.');
+    }
+  } else if (toolName === 'get_meeting_context') {
+    const meeting = rawResult.meeting as { title?: string; agenda?: string } | undefined;
+    if (rawResult.result === 'guidance' || (!meeting && (rawResult.agent_instruction ?? rawResult.text))) {
+      text = (rawResult.agent_instruction ?? rawResult.text ?? rawResult.message) as string;
+    } else {
+      const invitee = rawResult.invitee as { name?: string } | undefined;
+      const hints = (rawResult.agent_hints as string[] | undefined) || [];
+      const noAgendaOpening = (rawResult.no_agenda_opening as string | null | undefined) || null;
+      text = [
+        meeting?.title && `Meeting: ${meeting.title}.`,
+        meeting?.agenda ? `Agenda: ${meeting.agenda}.` : (noAgendaOpening ? `No agenda. Say to the user: "${noAgendaOpening}"` : null),
+        invitee?.name && `Invitee: ${invitee.name}.`,
+        ...hints.slice(0, 4),
+      ].filter(Boolean).join(' ');
+      if (!text) text = JSON.stringify(rawResult);
+    }
+  } else if (toolName === 'persist_transcript') {
+    text = 'Transcript saved successfully.';
+  } else if (toolName === 'finalize_call_session') {
+    text = (rawResult as any).success ? 'Call session ended.' : 'Failed to finalize call session.';
+    isError = !(rawResult as any).success;
+  } else if (toolName === 'persist_summary' || toolName === 'generate_summary_from_transcript') {
+    text = 'Summary saved successfully.';
+  } else {
+    text = typeof msg === 'string' && msg.length > 0 ? msg : JSON.stringify(rawResult);
+    if (typeof (rawResult as any).success === 'boolean') isError = !(rawResult as any).success;
+  }
+
+  return {
+    content: [{ type: 'text' as const, text }],
+    isError,
+  };
+}
+
+/** Convert a tool to MCP list item with JSON Schema (avoids deep type instantiation from zod-to-json-schema). */
+function toToolJsonSchema(tool: (typeof MCP_TOOLS)[number]): { name: string; description: string; inputSchema: Record<string, unknown> } {
+  try {
+    const raw = zodToJsonSchema(tool.inputSchema as never, {
+      name: tool.name,
+      target: 'openApi3',
+    }) as Record<string, unknown>;
+    const cleanedSchema: Record<string, unknown> = {
+      type: raw.type || 'object',
+      properties: raw.properties || {},
+      required: raw.required || [],
+    };
+    if (raw.additionalProperties !== undefined) cleanedSchema.additionalProperties = raw.additionalProperties;
+    return { name: tool.name, description: tool.description, inputSchema: cleanedSchema };
+  } catch (err: unknown) {
+    console.error(`❌ Failed to convert schema for ${tool.name}:`, err);
+    return {
+      name: tool.name,
+      description: tool.description,
+      inputSchema: { type: 'object', properties: {}, required: [] },
+    };
+  }
+}
 
 // Health check
 app.get('/health', (req, res) => {
@@ -39,7 +124,7 @@ app.get('/tools', (req, res) => {
   });
 });
 
-// Execute a tool (MCP protocol: tools/call)
+// Execute a tool (MCP protocol: tools/call) – response in MCP format so agents receive content[].text
 app.post('/tools/call', async (req, res) => {
   try {
     const { name, arguments: args } = req.body;
@@ -49,8 +134,9 @@ app.post('/tools/call', async (req, res) => {
       return;
     }
 
-    const result = await executeTool(name, args);
-    res.json({ result });
+    const rawResult = await executeTool(name, args);
+    const mcpResult = toMCPToolResult(name, rawResult as Record<string, unknown>);
+    res.json({ result: mcpResult });
   } catch (error: any) {
     console.error('Tool execution error:', error);
     res.status(500).json({
@@ -132,22 +218,27 @@ app.post('/mcp', async (req, res) => {
           name: 'tacit-mcp-server',
           version: '1.0.0',
         },
-        // Add instructions for the agent
-        instructions: `You are a voice assistant for Tacit knowledge capture meetings. 
+        // Add instructions for the agent (flow + personality)
+        instructions: `You are the Tacit voice agent for knowledge capture meetings.
 
-CRITICAL FIRST STEPS WHEN A CALL STARTS:
-1. Immediately greet the caller: "Hello! Welcome to Tacit. To get started, I'll need two things from you."
-2. Ask for the meeting code: "First, please tell me your 4-digit meeting code."
-3. Wait for the user to provide the meeting code (e.g., "1234" or "one two three four").
-4. Ask for their name: "Thank you. Now, please tell me your full name."
-5. Wait for the user to provide their name.
-6. Once you have BOTH the meeting code and name, call the verify_user_and_start_session tool with both values.
+PERSONALITY — How to act and speak:
+- Warm and professional. Short, clear sentences. One idea per sentence.
+- You are the facilitator; the caller is the expert. Listen more than you talk. Ask one question at a time.
+- Say exactly what tools return: use the "say_to_user" or "message_for_user" text verbatim for verification success or failure. Never say "technical difficulties" or "I cannot verify" when the tool succeeded.
+- If the caller goes off-topic, redirect gently: "That's useful. Let's make sure we cover [agenda item]—what's the key point there?"
+- Keep greetings and closings brief. End with a short thank-you and goodbye.
+- After any tool returns, respond immediately with a short reply. Do not stay silent for long.
 
-IMPORTANT:
-- Always ask for meeting code FIRST, then name SECOND
-- Do NOT proceed with the conversation until verification succeeds
-- If verification fails, ask the user to try again
-- After successful verification, you'll receive the meeting agenda and can begin the knowledge capture conversation`,
+FLOW:
+1. Validate: Greet, ask for 4-digit meeting code, then full name. Call verify_user_and_start_session with both. Do not proceed until verification succeeds.
+2. After verification success: The response already includes the agenda, agent_hints, and call_session_id. Do NOT call get_meeting_context. Say the welcome message from the tool, then start the meeting right away. Respond immediately—avoid long pauses.
+3. Stick to the agenda: Use the agenda and hints from the verification response. Conduct the meeting; extract tacit knowledge.
+4. End: When the call ends, call finalize_call_session with call_session_id, status ("completed" or "failed"), and raw_transcript containing the conversation (e.g. { messages: [...] }). The transcript is saved automatically when you pass raw_transcript to finalize_call_session. Optionally call persist_transcript during the call to save a mid-call snapshot.
+
+RULES:
+- Meeting code first, then name. Only then call verify_user_and_start_session.
+- After verification success you already have agenda and call_session_id in the same response. Do not call get_meeting_context. Reply to the user right away.
+- When ending the call, always call finalize_call_session with the call_session_id, status, and raw_transcript so the call transcript is saved.`,
       };
       
       console.log('✅ Initialize response:', response);
@@ -175,67 +266,12 @@ IMPORTANT:
     if (!session_id) {
       if (requestMethod === 'tools/list' || requestMethod === 'mcp/tools/list') {
         // Convert Zod schemas to JSON Schema format using zod-to-json-schema
-        const tools = MCP_TOOLS.map(tool => {
-          try {
-            const zodSchema = tool.inputSchema;
-            // Use zod-to-json-schema library for proper conversion
-            const jsonSchema = zodToJsonSchema(zodSchema, {
-              name: tool.name,
-              target: 'openApi3', // Use OpenAPI 3 format for better compatibility
-            });
-            
-            // Remove $schema and definitions if present (MCP doesn't need them)
-            const cleanedSchema: any = {
-              type: jsonSchema.type || 'object',
-              properties: jsonSchema.properties || {},
-              required: jsonSchema.required || [],
-            };
-            
-            // Copy additional properties if needed
-            if (jsonSchema.additionalProperties !== undefined) {
-              cleanedSchema.additionalProperties = jsonSchema.additionalProperties;
-            }
-            
-            console.log(`✅ Converted schema for ${tool.name}:`, JSON.stringify(cleanedSchema, null, 2));
-            
-            return {
-              name: tool.name,
-              description: tool.description,
-              inputSchema: cleanedSchema,
-            };
-          } catch (error: any) {
-            console.error(`❌ Failed to convert schema for ${tool.name}:`, error);
-            console.error('Error stack:', error.stack);
-            // Fallback to basic structure
-            return {
-              name: tool.name,
-              description: tool.description,
-              inputSchema: {
-                type: 'object',
-                properties: {},
-                required: [],
-              },
-            };
-          }
-        });
+        const tools = MCP_TOOLS.map(tool => toToolJsonSchema(tool));
         
         const response = { 
           tools,
           // Add prompt/instructions to guide the agent
-          prompt: `You are a voice assistant for Tacit knowledge capture meetings.
-
-CRITICAL FIRST STEPS WHEN A CALL STARTS:
-1. Immediately greet: "Hello! Welcome to Tacit. To get started, I'll need your 4-digit meeting code."
-2. Wait for the user to provide the meeting code (they may say "1234" or "one two three four")
-3. After receiving the code, say: "Thank you. Now please tell me your full name."
-4. Wait for the user to provide their name
-5. Once you have BOTH the meeting_code and spoken_name, call verify_user_and_start_session with both values
-
-IMPORTANT RULES:
-- ALWAYS ask for meeting code FIRST, then name SECOND
-- DO NOT proceed with conversation until verify_user_and_start_session succeeds
-- If verification fails, politely ask the user to try again
-- After successful verification, you'll receive the meeting agenda and can begin the knowledge capture conversation`
+          prompt: `You are the Tacit voice agent. PERSONALITY: Warm and professional. Short, clear sentences. Say tool messages (say_to_user/message_for_user) exactly—never "technical difficulties" when the tool succeeded. Listen more than you talk; one question at a time. Redirect off-topic gently; keep closings brief. After any tool returns, respond immediately; avoid long pauses. FLOW: (1) Ask meeting code then name → verify_user_and_start_session. (2) Verification success response already has agenda and call_session_id—do NOT call get_meeting_context; say the welcome and start the meeting right away. (3) Conduct meeting, extract knowledge. (4) When the call ends, call finalize_call_session with call_session_id, status, and raw_transcript (the conversation transcript) so the transcript is saved automatically.`
         };
         
         console.log('✅ Tools list response:', { toolCount: tools.length });
@@ -311,37 +347,34 @@ IMPORTANT RULES:
               result.result = 'success';
               result.text = result.say_to_user || result.message_for_user; // Simple text field ElevenLabs can read
               result.message = result.say_to_user || result.message_for_user; // Alternative field name
-            } else if (result.status === 'verification_failed') {
-              // Ensure all failure indicators are present
+            } else if (result.status === 'verification_failed' || result.status === 'too_early' || result.status === 'too_late') {
               result.verified = false;
               result.success = false;
               result.verification_successful = false;
-              // Ensure say_to_user matches message_for_user
-              if (!result.say_to_user) {
-                result.say_to_user = result.message_for_user;
-              }
-              // Ensure agent_instruction is present and clear
+              if (!result.say_to_user) result.say_to_user = result.message_for_user;
               if (!result.agent_instruction) {
-                result.agent_instruction = `VERIFICATION FAILED. Say this to the user: "${result.message_for_user}" Then ask them to try again.`;
+                result.agent_instruction = result.status === 'too_early'
+                  ? `Caller is too early. Say this: "${result.message_for_user}"`
+                  : result.status === 'too_late'
+                    ? `Caller is too late. Say this: "${result.message_for_user}"`
+                    : `VERIFICATION FAILED. Say this to the user: "${result.message_for_user}" Then ask them to try again.`;
               }
-              
-              // Add ElevenLabs-friendly fields
               result.result = 'error';
               result.text = result.say_to_user || result.message_for_user;
               result.message = result.say_to_user || result.message_for_user;
             }
           }
           
-          // MCP protocol: result should be the tool output directly, not nested
+          // MCP spec: result must be { content: [{ type: "text", text: "..." }], isError } so the agent receives the output
+          const mcpResult = toMCPToolResult(toolName, result as Record<string, unknown>);
           if (jsonrpc && requestId !== undefined) {
             return res.json({
               jsonrpc: '2.0',
               id: requestId,
-              result: result, // Tool result directly, not wrapped
+              result: mcpResult,
             });
           }
-          
-          return res.json({ result });
+          return res.json({ result: mcpResult });
         } catch (error: any) {
           console.error('❌ Tool execution failed:', error);
           
@@ -376,20 +409,30 @@ IMPORTANT RULES:
               result: 'error',
               error: 'missing_parameters',
               message: 'You must collect the meeting code and name from the user before calling this tool.',
-              guidance: 'First, greet the user and ask: "Hello! Welcome to Tacit. To get started, I\'ll need your 4-digit meeting code." Wait for their response, then ask: "Thank you. Now please tell me your full name." Once you have both values, call this tool again.',
               text: 'Please collect the meeting code and name from the user first.',
               agent_instruction: 'DO NOT call verify_user_and_start_session yet. First ask the user for their 4-digit meeting code, then ask for their full name. Only call this tool when you have both values.',
             };
-            
+            const mcpGuidance = toMCPToolResult('verify_user_and_start_session', guidanceResponse);
             if (jsonrpc && requestId !== undefined) {
-              return res.json({
-                jsonrpc: '2.0',
-                id: requestId,
-                result: guidanceResponse, // Return guidance as result, not error
-              });
+              return res.json({ jsonrpc: '2.0', id: requestId, result: mcpGuidance });
             }
-            
-            return res.json(guidanceResponse);
+            return res.json({ result: mcpGuidance });
+          }
+
+          // For get_meeting_context called without call_session_id, return guidance so the agent can recover
+          if (toolName === 'get_meeting_context' && errorMessage.includes('call_session_id')) {
+            const guidanceResponse = {
+              result: 'guidance',
+              error: 'missing_call_session_id',
+              message: 'get_meeting_context requires call_session_id from verify_user_and_start_session.',
+              text: 'Do NOT call get_meeting_context until after verification. First ask the user for their 4-digit meeting code and full name, then call verify_user_and_start_session with meeting_code and spoken_name. Use the call_session_id from that response when calling get_meeting_context.',
+              agent_instruction: 'You have not verified the user yet. Ask: "Hello! Welcome to Tacit. To get started, please tell me your 4-digit meeting code." Then ask for their full name. Call verify_user_and_start_session with those values. Only after it succeeds, call get_meeting_context with the call_session_id from the verification response.',
+            };
+            const mcpGuidance = toMCPToolResult('get_meeting_context', guidanceResponse);
+            if (jsonrpc && requestId !== undefined) {
+              return res.json({ jsonrpc: '2.0', id: requestId, result: mcpGuidance });
+            }
+            return res.json({ result: mcpGuidance });
           }
           
           if (jsonrpc && requestId !== undefined) {
@@ -425,78 +468,39 @@ IMPORTANT RULES:
       return res.status(400).json(error);
     }
     
-    // SSE mode: send response through SSE stream
+    // SSE mode: optional SSE broadcast; always return result in POST body so client gets tools/results
     const sseConnection = activeConnections.get(session_id);
-    if (!sseConnection) {
-      console.error(`❌ SSE session not found: ${session_id}`);
-      console.log('Available sessions:', Array.from(activeConnections.keys()));
-      return res.status(404).json({ error: 'SSE session not found. Connect to /mcp?session_id=... first' });
-    }
     
+    let sseToolName: string | undefined;
     try {
       if (requestMethod === 'tools/list' || requestMethod === 'mcp/tools/list') {
-        // Convert Zod schemas to JSON Schema format using zod-to-json-schema
-        const tools = MCP_TOOLS.map(tool => {
-          try {
-            const zodSchema = tool.inputSchema;
-            const jsonSchema = zodToJsonSchema(zodSchema, {
-              name: tool.name,
-              target: 'openApi3',
-            });
-            
-            const cleanedSchema: any = {
-              type: jsonSchema.type || 'object',
-              properties: jsonSchema.properties || {},
-              required: jsonSchema.required || [],
-            };
-            
-            if (jsonSchema.additionalProperties !== undefined) {
-              cleanedSchema.additionalProperties = jsonSchema.additionalProperties;
-            }
-            
-            return {
-              name: tool.name,
-              description: tool.description,
-              inputSchema: cleanedSchema,
-            };
-          } catch (error: any) {
-            console.error(`❌ Failed to convert schema for ${tool.name}:`, error);
-            return {
-              name: tool.name,
-              description: tool.description,
-              inputSchema: {
-                type: 'object',
-                properties: {},
-                required: [],
-              },
-            };
-          }
-        });
-        
-        const sseResponse = {
+        const tools = MCP_TOOLS.map(tool => toToolJsonSchema(tool));
+        const jsonRpcResponse = {
           jsonrpc: '2.0',
           id: requestId,
           result: { tools },
         };
-        
-        sseConnection.write(`event: response\n`);
-        sseConnection.write(`data: ${JSON.stringify(sseResponse)}\n\n`);
-        console.log('✅ SSE tools/list response sent');
-        return res.json({ status: 'sent' });
+        if (sseConnection) {
+          sseConnection.write(`event: response\n`);
+          sseConnection.write(`data: ${JSON.stringify(jsonRpcResponse)}\n\n`);
+        }
+        console.log('✅ Tools list response (toolCount=%d)', tools.length);
+        return res.json(jsonRpcResponse);
       }
 
       if (requestMethod === 'tools/call' || requestMethod === 'mcp/tools/call') {
-        // Try multiple possible formats
-        const toolName = requestParams.name || requestParams.tool_name || req.body.name;
+        sseToolName = requestParams.name || requestParams.tool_name || req.body.name;
         let toolArgs = requestParams.arguments || requestParams.args || requestParams;
         
-        console.log('🔧 SSE Tool call:', { session_id, toolName, toolArgs });
+        console.log('🔧 SSE Tool call:', { session_id, toolName: sseToolName, toolArgs });
         
-        if (!toolName) {
+        if (!sseToolName) {
           const error = { error: 'Missing tool name', received: { method: requestMethod, params: requestParams } };
           console.error('❌', error);
-          sseConnection.write(`event: error\n`);
-          sseConnection.write(`data: ${JSON.stringify({ ...error, id: requestId })}\n\n`);
+          if (sseConnection) {
+            sseConnection.write(`event: error\n`);
+            sseConnection.write(`data: ${JSON.stringify({ ...error, id: requestId })}\n\n`);
+          }
           return res.status(400).json(error);
         }
         
@@ -506,12 +510,12 @@ IMPORTANT RULES:
         }
 
         // Execute tool and send result via SSE
-        let result = await executeTool(toolName, toolArgs);
-        console.log('✅ SSE Tool executed successfully:', toolName);
+        let result = await executeTool(sseToolName, toolArgs);
+        console.log('✅ SSE Tool executed successfully:', sseToolName);
         console.log('📤 SSE Tool result (before processing):', JSON.stringify(result, null, 2));
         
         // Apply same success indicators as non-SSE mode
-        if (toolName === 'verify_user_and_start_session') {
+        if (sseToolName === 'verify_user_and_start_session') {
           if (result.status === 'verified') {
             // Ensure all success indicators are present
             result.verified = true;
@@ -529,39 +533,37 @@ IMPORTANT RULES:
             result.result = 'success';
             result.text = result.say_to_user || result.message_for_user;
             result.message = result.say_to_user || result.message_for_user;
-          } else if (result.status === 'verification_failed') {
-            // Ensure all failure indicators are present
+          } else if (result.status === 'verification_failed' || result.status === 'too_early' || result.status === 'too_late') {
             result.verified = false;
             result.success = false;
             result.verification_successful = false;
-            // Ensure say_to_user matches message_for_user
-            if (!result.say_to_user) {
-              result.say_to_user = result.message_for_user;
-            }
-            // Ensure agent_instruction is present and clear
+            if (!result.say_to_user) result.say_to_user = result.message_for_user;
             if (!result.agent_instruction) {
-              result.agent_instruction = `VERIFICATION FAILED. Say this to the user: "${result.message_for_user}" Then ask them to try again.`;
+              result.agent_instruction = result.status === 'too_early'
+                ? `Caller is too early. Say this: "${result.message_for_user}"`
+                : result.status === 'too_late'
+                  ? `Caller is too late. Say this: "${result.message_for_user}"`
+                  : `VERIFICATION FAILED. Say this to the user: "${result.message_for_user}" Then ask them to try again.`;
             }
-            // Add ElevenLabs-friendly fields
             result.result = 'error';
             result.text = result.say_to_user || result.message_for_user;
             result.message = result.say_to_user || result.message_for_user;
           }
         }
         
-        console.log('📤 SSE Tool result (after processing):', JSON.stringify(result, null, 2));
+        console.log('📤 Tool result (after processing):', JSON.stringify(result, null, 2));
         
-        // Send via SSE in JSON-RPC format
-        const sseResponse = {
+        const mcpResult = toMCPToolResult(sseToolName, result as Record<string, unknown>);
+        const jsonRpcResponse = {
           jsonrpc: '2.0',
           id: requestId,
-          result: result, // Tool result directly
+          result: mcpResult,
         };
-        
-        sseConnection.write(`event: response\n`);
-        sseConnection.write(`data: ${JSON.stringify(sseResponse)}\n\n`);
-        console.log('✅ SSE response sent:', JSON.stringify(sseResponse, null, 2));
-        return res.json({ status: 'sent' });
+        if (sseConnection) {
+          sseConnection.write(`event: response\n`);
+          sseConnection.write(`data: ${JSON.stringify(jsonRpcResponse)}\n\n`);
+        }
+        return res.json(jsonRpcResponse);
       }
 
       const error = { 
@@ -570,8 +572,10 @@ IMPORTANT RULES:
         supported_methods: ['initialize', 'initialized', 'notifications/initialized', 'tools/list', 'tools/call', 'mcp/tools/list', 'mcp/tools/call'],
       };
       console.error('❌', error);
-      sseConnection.write(`event: error\n`);
-      sseConnection.write(`data: ${JSON.stringify({ ...error, id: requestId })}\n\n`);
+      if (sseConnection) {
+        sseConnection.write(`event: error\n`);
+        sseConnection.write(`data: ${JSON.stringify({ ...error, id: requestId })}\n\n`);
+      }
       return res.status(400).json(error);
     } catch (error: any) {
       console.error('❌ Tool execution error:', error);
@@ -590,26 +594,21 @@ IMPORTANT RULES:
           errorCode = -32602; // Invalid params
           
           // For verify_user_and_start_session with missing params, provide helpful response
-          if (toolName === 'verify_user_and_start_session') {
+          if (sseToolName === 'verify_user_and_start_session') {
             const guidanceResponse = {
               result: 'error',
               error: 'missing_parameters',
               message: 'You must collect the meeting code and name from the user before calling this tool.',
-              guidance: 'First, greet the user and ask: "Hello! Welcome to Tacit. To get started, I\'ll need your 4-digit meeting code." Wait for their response, then ask: "Thank you. Now please tell me your full name." Once you have both values, call this tool again.',
               text: 'Please collect the meeting code and name from the user first.',
               agent_instruction: 'DO NOT call verify_user_and_start_session yet. First ask the user for their 4-digit meeting code, then ask for their full name. Only call this tool when you have both values.',
             };
-            
-            const sseErrorResponse = {
-              jsonrpc: '2.0',
-              id: requestId,
-              result: guidanceResponse, // Return guidance as result, not error
-            };
-            
-            sseConnection.write(`event: response\n`);
-            sseConnection.write(`data: ${JSON.stringify(sseErrorResponse)}\n\n`);
-            console.log('✅ SSE guidance response sent:', JSON.stringify(sseErrorResponse, null, 2));
-            return res.json({ status: 'sent' });
+            const mcpGuidance = toMCPToolResult('verify_user_and_start_session', guidanceResponse);
+            const guidanceRpcResponse = { jsonrpc: '2.0', id: requestId, result: mcpGuidance };
+            if (sseConnection) {
+              sseConnection.write(`event: response\n`);
+              sseConnection.write(`data: ${JSON.stringify(guidanceRpcResponse)}\n\n`);
+            }
+            return res.json(guidanceRpcResponse);
           }
         } else {
           const errors = error.issues.map((issue: any) => 
@@ -619,21 +618,35 @@ IMPORTANT RULES:
           errorCode = -32602; // Invalid params
         }
       }
+
+      // get_meeting_context called without call_session_id: return guidance so the agent can recover
+      if (sseToolName === 'get_meeting_context' && errorMessage.includes('call_session_id')) {
+        const guidanceResponse = {
+          result: 'guidance',
+          error: 'missing_call_session_id',
+          message: 'get_meeting_context requires call_session_id from verify_user_and_start_session.',
+          text: 'Do NOT call get_meeting_context until after verification. First ask the user for their 4-digit meeting code and full name, then call verify_user_and_start_session with meeting_code and spoken_name. Use the call_session_id from that response when calling get_meeting_context.',
+          agent_instruction: 'You have not verified the user yet. Ask: "Hello! Welcome to Tacit. To get started, please tell me your 4-digit meeting code." Then ask for their full name. Call verify_user_and_start_session with those values. Only after it succeeds, call get_meeting_context with the call_session_id from the verification response.',
+        };
+        const mcpGuidance = toMCPToolResult('get_meeting_context', guidanceResponse);
+        const guidanceRpcResponse = { jsonrpc: '2.0', id: requestId, result: mcpGuidance };
+        if (sseConnection) {
+          sseConnection.write(`event: response\n`);
+          sseConnection.write(`data: ${JSON.stringify(guidanceRpcResponse)}\n\n`);
+        }
+        return res.json(guidanceRpcResponse);
+      }
       
-      // Send error via SSE in JSON-RPC format
-      const sseErrorResponse = {
+      const errorRpcResponse = {
         jsonrpc: '2.0',
         id: requestId,
-        error: {
-          code: errorCode,
-          message: errorMessage,
-        },
+        error: { code: errorCode, message: errorMessage },
       };
-      
-      sseConnection.write(`event: error\n`);
-      sseConnection.write(`data: ${JSON.stringify(sseErrorResponse)}\n\n`);
-      console.log('❌ SSE error response sent:', JSON.stringify(sseErrorResponse, null, 2));
-      return res.status(400).json({ error: errorMessage });
+      if (sseConnection) {
+        sseConnection.write(`event: error\n`);
+        sseConnection.write(`data: ${JSON.stringify(errorRpcResponse)}\n\n`);
+      }
+      return res.status(400).json(errorRpcResponse);
     }
   } catch (error: any) {
     console.error('MCP protocol error:', error);

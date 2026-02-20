@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { X, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { TACIT_AGENTS } from "@/data/agents";
+import { SelectedAgentDescription } from "./SelectedAgentDescription";
 
 interface ScheduleSessionModalProps {
   open: boolean;
@@ -26,23 +28,20 @@ export function ScheduleSessionModal({ open, onClose }: ScheduleSessionModalProp
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const agents = [
-    { id: "rachael", name: "Rachael", description: "Finance Expert", icon: "👩‍💼", keywords: ["finance", "financial", "accounting", "money", "budget", "revenue", "expenses"] },
-    { id: "ross", name: "Ross", description: "Compliance Specialist", icon: "👨‍⚖️", keywords: ["compliance", "legal", "regulation", "policy", "audit", "governance", "risk"] },
-    { id: "monica", name: "Monica", description: "Operations Manager", icon: "👩‍🔧", keywords: ["operations", "operational", "process", "workflow", "efficiency", "management", "logistics"] },
-    { id: "chandler", name: "Chandler", description: "Data Analyst", icon: "👨‍💻", keywords: ["data", "analytics", "analysis", "reporting", "metrics", "insights", "statistics"] },
-  ];
+  const agents = TACIT_AGENTS;
 
-  // Filter agents based on search query (matches name, description, or keywords)
   const filteredAgents = agents.filter((agent) => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
     return (
       agent.name.toLowerCase().includes(query) ||
-      agent.description.toLowerCase().includes(query) ||
-      agent.keywords.some((keyword) => keyword.toLowerCase().includes(query))
+      agent.tagline.toLowerCase().includes(query) ||
+      agent.role.toLowerCase().includes(query) ||
+      agent.keywords.some((k) => k.toLowerCase().includes(query))
     );
   });
+
+  const shouldShowSearchResults = isSearchFocused && searchQuery.trim().length > 0;
 
   // Close search dropdown when clicking outside
   useEffect(() => {
@@ -109,10 +108,28 @@ export function ScheduleSessionModal({ open, onClose }: ScheduleSessionModalProp
       const durationMinutes = parseInt(formData.sessionDuration);
       const scheduledEndAt = new Date(new Date(scheduledStartAt).getTime() + durationMinutes * 60000).toISOString();
 
-      // Extract invitee name from email (or you can add a name field)
-      const inviteeName = formData.inviteeEmail.split("@")[0];
+      // Parse invitees: support comma-separated emails; name from part before @ or "Invitee"
+      const inviteeEmails = formData.inviteeEmail.split(",").map((e) => e.trim()).filter(Boolean);
+      const invitees = inviteeEmails.map((email) => ({
+        name: email.split("@")[0] || "Invitee",
+        email,
+      }));
 
-      // Create meeting
+      const selectedAgentData = selectedAgent ? agents.find((a) => a.id === selectedAgent) : null;
+      const agentPayload = selectedAgentData
+        ? {
+            agent: {
+              name: selectedAgentData.name,
+              tagline: selectedAgentData.tagline,
+              role: selectedAgentData.role,
+              persona: selectedAgentData.persona,
+              description: selectedAgentData.description,
+              descriptionContinued: selectedAgentData.descriptionContinued,
+              specialties: selectedAgentData.specialties,
+            },
+          }
+        : {};
+
       const meetingResponse = await fetch(`${API_URL}/api/meetings`, {
         method: "POST",
         headers: {
@@ -125,12 +142,8 @@ export function ScheduleSessionModal({ open, onClose }: ScheduleSessionModalProp
           agenda: formData.sessionNotes || undefined,
           scheduled_start_at: scheduledStartAt,
           scheduled_end_at: scheduledEndAt,
-          invitees: [
-            {
-              name: inviteeName,
-              email: formData.inviteeEmail,
-            },
-          ],
+          invitees,
+          ...agentPayload,
         }),
       });
 
@@ -143,7 +156,9 @@ export function ScheduleSessionModal({ open, onClose }: ScheduleSessionModalProp
 
       toast({
         title: "Session Scheduled!",
-        description: `Meeting invitation has been sent to ${formData.inviteeEmail}`,
+        description: invitees.length > 1
+          ? `Meeting invitation sent to ${invitees.length} invitees.`
+          : `Meeting invitation has been sent to ${formData.inviteeEmail}`,
       });
 
       onClose();
@@ -196,11 +211,10 @@ export function ScheduleSessionModal({ open, onClose }: ScheduleSessionModalProp
           ×
         </button>
         <h2 className="text-[2rem] font-extrabold text-primary mb-4 text-center">
-          Schedule Tacit Session
+          Schedule A Tacit Session
         </h2>
         <p className="text-muted-foreground mb-8 text-center text-base">
-          Search for an agent by name, expertise, or keywords. The invitee will receive a calendar invitation
-          with your unique phone number.
+        Pick an agent, set a time, and we’ll send the invitee a calendar invite with a dedicated phone number and access code.
         </p>
 
         {/* Netflix-style Search Bar */}
@@ -218,7 +232,7 @@ export function ScheduleSessionModal({ open, onClose }: ScheduleSessionModalProp
           </div>
 
           {/* Search Results Dropdown */}
-          {isSearchFocused && (
+          {shouldShowSearchResults && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-black/95 backdrop-blur-md border border-white/20 rounded-md shadow-2xl max-h-[400px] overflow-y-auto z-50">
               {filteredAgents.length > 0 ? (
                 <div className="p-2">
@@ -236,17 +250,14 @@ export function ScheduleSessionModal({ open, onClose }: ScheduleSessionModalProp
                           : "hover:bg-white/10 border border-transparent"
                       }`}
                     >
-                      <div className="flex-shrink-0">
-                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 via-primary/15 to-primary/10 flex items-center justify-center text-4xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200">
-                          <span className="drop-shadow-sm">{agent.icon}</span>
-                        </div>
-                      </div>
+                      <div className="flex-shrink-0 text-3xl">{agent.icon}</div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-white font-semibold text-lg mb-1">{agent.name}</div>
-                        <div className="text-white/70 text-sm">{agent.description}</div>
+                        <div className="text-white font-semibold text-lg mb-0.5">{agent.name}</div>
+                        <div className="text-white/80 text-sm font-medium">{agent.tagline}</div>
+                        <div className="text-white/60 text-xs mt-0.5">{agent.role}</div>
                         {searchQuery && (
                           <div className="text-white/50 text-xs mt-1">
-                            Matched: {agent.keywords.filter(k => k.toLowerCase().includes(searchQuery.toLowerCase())).join(", ")}
+                            Matched: {agent.keywords.filter((k) => k.toLowerCase().includes(searchQuery.toLowerCase())).join(", ")}
                           </div>
                         )}
                       </div>
@@ -265,41 +276,25 @@ export function ScheduleSessionModal({ open, onClose }: ScheduleSessionModalProp
             </div>
           )}
 
-          {/* Selected Agent Display */}
-          {selectedAgent && !isSearchFocused && (
-            <div className="mt-4 flex items-center gap-4 p-4 bg-primary/10 border border-primary/30 rounded-md">
-              {agents.find(a => a.id === selectedAgent) && (
-                <div className="flex-shrink-0">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/30 via-primary/20 to-primary/10 flex items-center justify-center text-5xl shadow-xl ring-2 ring-primary/40">
-                    <span className="drop-shadow-md">{agents.find(a => a.id === selectedAgent)?.icon}</span>
-                  </div>
-                </div>
-              )}
-              <div className="flex-1">
-                <div className="text-foreground font-semibold text-lg">
-                  {agents.find(a => a.id === selectedAgent)?.name}
-                </div>
-                <div className="text-muted-foreground text-sm">
-                  {agents.find(a => a.id === selectedAgent)?.description}
-                </div>
-              </div>
-              <button
-                onClick={() => {
+          {/* Selected Agent – full description */}
+          {selectedAgent && !isSearchFocused && (() => {
+            const agent = agents.find((a) => a.id === selectedAgent);
+            return agent ? (
+              <SelectedAgentDescription
+                agent={agent}
+                onClear={() => {
                   setSelectedAgent(null);
                   setSearchQuery("");
                 }}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          )}
+              />
+            ) : null;
+          })()}
         </div>
 
         <form onSubmit={handleSubmit} className="mt-8">
           <div className="mb-6">
             <label htmlFor="scheduleSessionTitle" className="block text-primary font-semibold mb-2 text-[0.95rem]">
-              Session Title
+              Meeting Title
             </label>
             <input
               type="text"
@@ -314,7 +309,7 @@ export function ScheduleSessionModal({ open, onClose }: ScheduleSessionModalProp
 
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
-              <label htmlFor="sessionDate" className="block text-[#10b981] font-semibold mb-2 text-[0.95rem]">
+              <label htmlFor="sessionDate" className="block text-primary-dashboard font-semibold mb-2 text-[0.95rem]">
                 Date
               </label>
               <input
@@ -327,7 +322,7 @@ export function ScheduleSessionModal({ open, onClose }: ScheduleSessionModalProp
               />
             </div>
             <div>
-              <label htmlFor="sessionTime" className="block text-[#10b981] font-semibold mb-2 text-[0.95rem]">
+              <label htmlFor="sessionTime" className="block text-primary-dashboard font-semibold mb-2 text-[0.95rem]">
                 Time
               </label>
               <input
@@ -342,7 +337,7 @@ export function ScheduleSessionModal({ open, onClose }: ScheduleSessionModalProp
           </div>
 
           <div className="mb-6">
-            <label htmlFor="sessionDuration" className="block text-[#10b981] font-semibold mb-2 text-[0.95rem]">
+            <label htmlFor="sessionDuration" className="block text-primary-dashboard font-semibold mb-2 text-[0.95rem]">
               Duration (minutes)
             </label>
             <input
@@ -359,8 +354,8 @@ export function ScheduleSessionModal({ open, onClose }: ScheduleSessionModalProp
           </div>
 
           <div className="mb-6">
-            <label htmlFor="scheduleInviteeEmail" className="block text-[#10b981] font-semibold mb-2 text-[0.95rem]">
-              SME Email (Invitee)
+            <label htmlFor="scheduleInviteeEmail" className="block text-primary-dashboard font-semibold mb-2 text-[0.95rem]">
+              Invitee Email (Comma separated)
             </label>
             <input
               type="email"
@@ -374,8 +369,8 @@ export function ScheduleSessionModal({ open, onClose }: ScheduleSessionModalProp
           </div>
 
           <div className="mb-6">
-            <label htmlFor="scheduleSessionNotes" className="block text-[#10b981] font-semibold mb-2 text-[0.95rem]">
-              Session Notes (Optional)
+            <label htmlFor="scheduleSessionNotes" className="block text-primary-dashboard font-semibold mb-2 text-[0.95rem]">
+              Meeting Agenda (Optional)
             </label>
             <textarea
               id="scheduleSessionNotes"
@@ -383,7 +378,7 @@ export function ScheduleSessionModal({ open, onClose }: ScheduleSessionModalProp
               onChange={(e) => setFormData({ ...formData, sessionNotes: e.target.value })}
               placeholder="Any specific topics or areas to focus on..."
               rows={4}
-              className="w-full bg-[rgba(26,26,26,0.8)] border-2 border-[rgba(16,185,129,0.3)] rounded-lg px-4 py-3 text-white text-base transition-all focus:outline-none focus:border-[#10b981] focus:shadow-[0_0_0_3px_rgba(16,185,129,0.1)] resize-vertical min-h-[100px]"
+              className="w-full bg-input border-2 border-primary-dashboard/30 rounded-lg px-4 py-3 text-foreground text-base transition-all focus:outline-none focus:border-primary-dashboard focus:ring-2 focus:ring-primary-dashboard/20 resize-none min-h-[100px]"
             />
           </div>
 

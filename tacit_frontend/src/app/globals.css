@@ -1,21 +1,184 @@
 @import "tailwindcss";
 
+/* ========== Design tokens (HSL). Toggle dark via .dark on html. ========== */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: 0 0% 100%;
+  --foreground: 0 0% 9%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 9%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 9%;
+
+  --primary: 160 84% 39%;
+  --primary-foreground: 0 0% 4%;
+  --primary-glow: 160 84% 49%;
+  --primary-hover: 160 84% 49%;
+  --primary-gradient-from: 160 84% 39%;
+  --primary-gradient-to: 160 91% 37%;
+
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 9%;
+
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 63%;
+
+  --accent: 160 84% 39%;
+  --accent-foreground: 0 0% 98%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+
+  --border: 0 0% 90%;
+  --input: 0 0% 90%;
+  --ring: 160 84% 39%;
+  --success: 142 71% 45%;
+
+  --radius: 0.5rem;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+  --font-sans: 'Inter', Arial, Helvetica, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Surfaces (for tacit-dashboard.css – same computed values) */
+  --panel: 0 0% 10%;
+
+  --surface-body: linear-gradient(135deg, hsl(0 0% 4%) 0%, hsl(0 0% 10%) 100%);
+  --surface-header: hsl(0 0% 4% / 0.95);
+  --surface-card: hsl(0 0% 16.5% / 0.5);
+  --surface-sidebar: hsl(0 0% 8% / 0.98);
+  --surface-drawer: hsl(0 0% 8% / 0.98);
+  --surface-input: hsl(0 0% 10% / 0.8);
+  --surface-dropdown: hsl(0 0% 10% / 0.95);
+  --surface-overlay: hsl(0 0% 0% / 0.5);
+  --surface-overlay-heavy: hsl(0 0% 0% / 0.8);
+  --surface-nested: hsl(0 0% 0% / 0.2);
+  --surface-nested-deep: hsl(0 0% 0% / 0.3);
+
+  --border-primary: hsl(160 84% 39% / 0.3);
+  --border-primary-strong: hsl(160 84% 39% / 0.5);
+  --border-primary-subtle: hsl(160 84% 39% / 0.2);
+
+  --shadow-primary: 0 0 15px hsl(160 84% 39% / 0.3);
+  --shadow-primary-strong: 0 0 15px hsl(160 84% 39% / 0.5);
+  --shadow-primary-glow: 0 10px 30px hsl(160 84% 39% / 0.4);
+  --shadow-primary-glow-hover: 0 15px 40px hsl(160 84% 39% / 0.6);
+  --shadow-primary-ring: 0 0 0 3px hsl(160 84% 39% / 0.1);
+  --shadow-drawer: -10px 0 30px rgb(0 0 0 / 0.5);
+  --shadow-card-hover: 0 10px 30px hsl(160 84% 39% / 0.2);
+  --shadow-button: 0 4px 15px hsl(160 84% 39% / 0.4);
+  --shadow-button-hover: 0 6px 20px hsl(160 84% 39% / 0.5);
+  --shadow-button-lg: 0 6px 20px hsl(160 84% 39% / 0.4);
+  --shadow-button-lg-hover: 0 8px 25px hsl(160 84% 39% / 0.6);
+  --shadow-elegant: 0 20px 60px hsl(160 84% 39% / 0.3);
+
+  --gradient-primary: linear-gradient(135deg, hsl(160 84% 39%) 0%, hsl(160 91% 37%) 100%);
+  --gradient-welcome-title: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(160 84% 39%) 100%);
+  --gradient-card-hover: linear-gradient(135deg, hsl(160 84% 39% / 0.05) 0%, transparent 100%);
 }
 
+.dark {
+  --panel: 0 0% 10%;
+  --background: 0 0% 4%;
+  --foreground: 0 0% 100%;
+
+  --card: 0 0% 16.5%;
+  --card-foreground: 0 0% 100%;
+
+  --popover: 0 0% 4%;
+  --popover-foreground: 0 0% 100%;
+
+  --primary: 160 84% 39%;
+  --primary-foreground: 0 0% 4%;
+  --primary-glow: 160 84% 49%;
+  --primary-hover: 160 84% 49%;
+  --primary-gradient-from: 160 84% 39%;
+  --primary-gradient-to: 160 91% 37%;
+
+  --secondary: 0 0% 15%;
+  --secondary-foreground: 0 0% 98%;
+
+  --muted: 0 0% 15%;
+  --muted-foreground: 0 0% 63%;
+
+  --accent: 160 84% 49%;
+  --accent-foreground: 0 0% 4%;
+
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 0 0% 98%;
+
+  --border: 0 0% 15%;
+  --input: 0 0% 15%;
+  --ring: 160 84% 39%;
+  --success: 142 71% 45%;
+
+  --surface-body: linear-gradient(135deg, hsl(0 0% 4%) 0%, hsl(0 0% 10%) 100%);
+  --surface-header: hsl(0 0% 4% / 0.95);
+  --surface-card: hsl(0 0% 16.5% / 0.5);
+  --surface-sidebar: hsl(0 0% 8% / 0.98);
+  --surface-drawer: hsl(0 0% 8% / 0.98);
+  --surface-input: hsl(0 0% 10% / 0.8);
+  --surface-dropdown: hsl(0 0% 10% / 0.95);
+  --surface-overlay: hsl(0 0% 0% / 0.5);
+  --surface-overlay-heavy: hsl(0 0% 0% / 0.8);
+  --surface-nested: hsl(0 0% 0% / 0.2);
+  --surface-nested-deep: hsl(0 0% 0% / 0.3);
+
+  --border-primary: hsl(160 84% 39% / 0.3);
+  --border-primary-strong: hsl(160 84% 39% / 0.5);
+  --border-primary-subtle: hsl(160 84% 39% / 0.2);
+}
+
+/* Fallback when no .dark (e.g. media query) – match current dashboard look */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not(.dark) {
+    --background: 0 0% 4%;
+    --foreground: 0 0% 93%;
   }
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: 'Inter', Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+/* Tailwind v4: map design tokens to utilities (bg-primary, text-muted-foreground, etc.) */
+@theme {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-panel: hsl(var(--panel));
+  --color-success: hsl(var(--success));
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius: var(--radius);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
 }
 
 @utility utilities {

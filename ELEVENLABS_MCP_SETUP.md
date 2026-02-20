@@ -269,6 +269,34 @@ LLM_MODEL=gpt-4
 
 ## Troubleshooting
 
+### Agent not calling any tools (including verify_user_and_start_session)
+
+If the agent never calls any MCP tools:
+
+1. **Response in POST body (fixed in server):**  
+   The MCP server now returns the **tools list** and **tool results** in the **POST response body** (not only over SSE). ElevenLabs expects the result in the HTTP response to its request. Restart the MCP server so it uses the latest code.
+
+2. **ElevenLabs dashboard – MCP URL:**
+   - Use the base URL that reaches your MCP server, e.g. `https://your-ngrok-url.ngrok.io/mcp` (with `/mcp`).
+   - Test from the same network ElevenLabs uses:  
+     `curl -X POST https://your-url/mcp -H "Content-Type: application/json" -d '{"method":"tools/list"}'`  
+     You should get a JSON body with a `result.tools` array, not `{ "status": "sent" }`.
+
+3. **Tool approval / execution mode:**
+   - In ElevenLabs, find MCP or “Tools” settings for your agent.
+   - If there is a “Tool approval” or “Execution mode” option, set it so tools can run without manual approval (e.g. “Auto approve” or “Execute automatically”). If every tool requires approval, the agent may not call them in a voice flow.
+
+4. **System prompt / instructions:**
+   - In the agent’s system prompt (or “Initial instructions”), explicitly tell it to use tools, for example:
+     - “When you have the meeting code and the user’s full name, you MUST call the verify_user_and_start_session tool with meeting_code and spoken_name.”
+     - “You have access to MCP tools. Use them to verify the user and run the meeting flow.”
+   - Use the prompt from the “Agent Not Asking for Meeting Code and Name” section below so the agent knows to call `verify_user_and_start_session` after collecting code and name.
+
+5. **Check server logs:**
+   - When a call runs, you should see `POST /mcp` with `method: "initialize"`, then `method: "tools/list"`, and later `method: "tools/call"`.
+   - If you see `tools/list` but never `tools/call`, the agent is not invoking tools (dashboard/config or prompt).
+   - If you don’t see `tools/list`, ElevenLabs is not getting the tool list (URL, network, or discovery flow).
+
 ### "Unexpected ExceptionGroup occurred while connecting to MCP server" / "STREAMABLE_HTTP transport" Error
 
 This error means ElevenLabs is trying to use Server-Sent Events (SSE) but can't establish the connection. Common causes:

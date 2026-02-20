@@ -49,9 +49,12 @@ export const PersistSummarySchema = z.object({
 
 export const FinalizeCallSessionSchema = z.object({
   call_session_id: z.string().uuid(),
-  ended_at_iso: z.string().datetime(),
+  ended_at_iso: z.string().datetime().optional(), // Defaults to now if omitted
   duration_sec: z.number().optional(),
   status: z.enum(['completed', 'failed']),
+  /** When provided, the transcript is saved to DB and storage when the call is finalized. Pass the conversation transcript here so it is persisted automatically. */
+  raw_transcript: z.any().optional(),
+  normalized_transcript: z.any().optional(),
   idempotency_key: z.string().optional(), // Auto-generated if not provided
 });
 
@@ -84,12 +87,12 @@ export interface VerifySpokenJoinResponse {
 }
 
 export interface VerifyUserAndStartSessionResponse {
-  verified?: boolean; // Explicit boolean: true when verified, false when failed
-  success?: boolean; // Explicit success indicator (true when verified)
-  status: 'verified' | 'verification_failed';
+  verified?: boolean;
+  success?: boolean;
+  status: 'verified' | 'verification_failed' | 'too_early' | 'too_late';
   attempts_left: number;
   message_for_user: string;
-  say_to_user?: string; // Explicit field telling agent what to say (same as message_for_user)
+  say_to_user?: string;
   call_session_id: string | null;
   meeting_context: {
     title: string;
@@ -97,8 +100,13 @@ export interface VerifyUserAndStartSessionResponse {
     invitee_name: string;
     project_name: string;
   } | null;
-  agent_instruction?: string; // Explicit instruction for the agent on what to say
-  verification_successful?: boolean; // Explicit verification success indicator
+  /** When verified: same as get_meeting_context so agent does not need a second tool call */
+  agent_hints?: string[];
+  no_agenda_opening?: string | null;
+  agent_instruction?: string;
+  verification_successful?: boolean;
+  /** When too_early/too_late: human-readable scheduled time for the agent to say */
+  scheduled_time_human?: string;
 }
 
 export interface GetMeetingContextResponse {
@@ -114,6 +122,8 @@ export interface GetMeetingContextResponse {
     email: string;
   } | null;
   agent_hints: string[];
+  /** When no agenda was set: phrase for the agent to say to open the conversation. */
+  no_agenda_opening?: string | null;
 }
 
 export interface PersistTranscriptResponse {

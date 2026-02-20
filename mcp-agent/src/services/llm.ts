@@ -74,7 +74,7 @@ async function generateSummaryOpenAI(prompt: string, model: string): Promise<Sum
     throw new Error(`OpenAI API error: ${error}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as { choices: Array<{ message: { content: string } }> };
   const content = JSON.parse(data.choices[0].message.content);
   
   return {
@@ -110,7 +110,7 @@ async function generateSummaryAnthropic(prompt: string, model: string): Promise<
     throw new Error(`Anthropic API error: ${error}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as { content: Array<{ text: string }> };
   const contentText = data.content[0].text;
   const content = JSON.parse(contentText);
   

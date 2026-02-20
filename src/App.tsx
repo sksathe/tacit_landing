@@ -14,6 +14,7 @@ import KnowledgeLibrary from "./pages/KnowledgeLibrary";
 import EmailToMeeting from "./pages/EmailToMeeting";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
+import MeetingTypeComingSoon from "./pages/MeetingTypeComingSoon";
 
 const queryClient = new QueryClient();
 
@@ -63,6 +64,14 @@ const App = () => {
               <Route path="/session/demo" element={<SessionDemo />} />
               <Route path="/knowledge-library" element={<KnowledgeLibrary />} />
               <Route path="/email-to-meeting" element={<EmailToMeeting />} />
+              <Route
+                path="/meeting-type/coming-soon"
+                element={
+                  <ProtectedRoute>
+                    <MeetingTypeComingSoon />
+                  </ProtectedRoute>
+                }
+              />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

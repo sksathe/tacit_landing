@@ -85,7 +85,7 @@ const SessionDemo = () => {
                 <Clock className="mr-1 h-3 w-3" />
                 {formatTime(sessionTime)}
               </Badge>
-              <Badge variant="secondary" className="bg-green-100 text-green-700">
+              <Badge variant="secondary" className="bg-primary/10 text-primary">
                 <Users className="mr-1 h-3 w-3" />
                 2 participants
               </Badge>
@@ -108,7 +108,7 @@ const SessionDemo = () => {
                       <p className="font-medium">Sarah Johnson</p>
                       <p className="text-sm text-muted-foreground">SME - Customer Success</p>
                     </div>
-                    <Badge className="absolute top-2 left-2 bg-green-500">
+                    <Badge className="absolute top-2 left-2 bg-primary">
                       <Mic className="mr-1 h-3 w-3" />
                       Speaking
                     </Badge>
@@ -126,7 +126,7 @@ const SessionDemo = () => {
                       <p className="font-medium">AI Agent</p>
                       <p className="text-sm text-muted-foreground">New Hire Persona</p>
                     </div>
-                    <Badge className="absolute top-2 left-2 bg-blue-500">
+                    <Badge className="absolute top-2 left-2 bg-chart-2">
                       <MessageSquare className="mr-1 h-3 w-3" />
                       Listening
                     </Badge>

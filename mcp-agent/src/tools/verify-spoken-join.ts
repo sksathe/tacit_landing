@@ -10,7 +10,8 @@ export async function verifySpokenJoin(
 ): Promise<VerifySpokenJoinResponse> {
   const { call_session_id, spoken_name, meeting_code, idempotency_key } = input;
 
-  return withIdempotency(`verify_join:${call_session_id}`, idempotency_key, async () => {
+  const key = idempotency_key ?? `${Date.now()}-${Math.random()}`;
+  return withIdempotency(`verify_join:${call_session_id}`, key, async () => {
     // Get call session and meeting
     const { data: callSession, error: sessionError } = await supabase
       .from('call_sessions')

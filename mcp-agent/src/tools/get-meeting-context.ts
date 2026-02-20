@@ -47,26 +47,43 @@ export async function getMeetingContext(
     }
   }
 
-  // Generate agent hints based on meeting context
+  const hasAgenda = meeting?.agenda && String(meeting.agenda).trim().length > 0;
+
   const agentHints: string[] = [];
-  if (meeting?.agenda) {
-    agentHints.push(`Focus on: ${meeting.agenda}`);
+  if (hasAgenda) {
+    agentHints.push('Stick to the agenda: cover the topics listed in the agenda; do not go off-topic.');
+    agentHints.push(`Agenda to follow: ${meeting!.agenda}`);
+    agentHints.push('Introduce and discuss each agenda item; keep the conversation focused on these points.');
+  } else {
+    agentHints.push(
+      'No agenda was provided for this call. Say to the user: "No agenda was given for the call. What would you like to discuss?" Then let the user set the topics and follow their lead.'
+    );
+    agentHints.push('Be conversational and help extract tacit knowledge on whatever topics the user wants to cover.');
+  }
+  if (meeting?.title) {
+    agentHints.push(`Meeting title: ${meeting.title}. Use this to frame the conversation.`);
   }
   if (project?.name) {
     agentHints.push(`Project context: ${project.name}`);
   }
-  agentHints.push('Be conversational and help extract tacit knowledge');
-  agentHints.push('Ask follow-up questions to clarify details');
+  if (hasAgenda) {
+    agentHints.push('Be conversational and help extract tacit knowledge.');
+  }
+  agentHints.push(hasAgenda
+    ? 'Ask follow-up questions to clarify details while staying on agenda topics.'
+    : 'Ask follow-up questions to clarify details.');
 
   return {
     meeting: {
       title: meeting?.title || '',
-      agenda: meeting?.agenda || null,
+      agenda: hasAgenda ? meeting!.agenda : null,
       scheduled_start_at: meeting?.scheduled_start_at || '',
       scheduled_end_at: meeting?.scheduled_end_at || '',
       meeting_code: meeting?.meeting_code || '',
     },
     invitee,
     agent_hints: agentHints,
+    /** When no agenda: exact phrase for the agent to say to the user. */
+    no_agenda_opening: hasAgenda ? null : 'No agenda was given for the call. What would you like to discuss?',
   };
 }

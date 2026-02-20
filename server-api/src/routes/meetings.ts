@@ -95,7 +95,7 @@ router.post('/', authMiddleware, async (req: AuthenticatedRequest, res: Response
         scheduled_end_at: body.scheduled_end_at,
         meeting_code: meetingCode,
         meeting_code_norm: meetingCodeNorm,
-        twilio_number: process.env.TWILIO_NUMBER || null,
+        twilio_number: process.env.TWILIO_NUMBER || '+1 (980) 499-5308',
         status: 'scheduled',
       })
       .select()
@@ -131,6 +131,18 @@ router.post('/', authMiddleware, async (req: AuthenticatedRequest, res: Response
           scheduledStartAt: body.scheduled_start_at,
           scheduledEndAt: body.scheduled_end_at,
           agenda: body.agenda,
+          agentName: body.agent?.name,
+          agentCard: body.agent
+            ? {
+                name: body.agent.name,
+                tagline: body.agent.tagline,
+                role: body.agent.role,
+                persona: body.agent.persona,
+                description: body.agent.description,
+                descriptionContinued: body.agent.descriptionContinued,
+                specialties: body.agent.specialties,
+              }
+            : undefined,
         }).catch(err => console.error(`Failed to send email to ${invitee.email}:`, err))
       )
     ).catch(err => console.error('Error sending emails:', err));

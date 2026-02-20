@@ -1,15 +1,24 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { SessionsSidebar } from "@/components/dashboard/SessionsSidebar";
 import { DashboardView } from "@/components/dashboard/DashboardView";
+import { AutomateAgentPicker } from "@/components/dashboard/AutomateAgentPicker";
+import { AutomateSessionsList } from "@/components/dashboard/AutomateSessionsList";
 import { SessionDetailView } from "@/components/dashboard/SessionDetailView";
 import { StartSessionModal } from "@/components/dashboard/StartSessionModal";
 import { ScheduleSessionModal } from "@/components/dashboard/ScheduleSessionModal";
 import { ConfigDrawer } from "@/components/dashboard/ConfigDrawer";
+import { ChooseMeetingTypeModal } from "@/components/dashboard/ChooseMeetingTypeModal";
+import type { TacitAgent } from "@/data/agents";
+import type { SessionItem } from "@/components/dashboard/AutomateSessionsList";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<"dashboard" | "session">("dashboard");
+  const [currentView, setCurrentView] = useState<"dashboard" | "automate-agents" | "automate-sessions" | "session">("dashboard");
+  const [selectedAgent, setSelectedAgent] = useState<TacitAgent | null>(null);
+  const [sessionsForAgent, setSessionsForAgent] = useState<SessionItem[]>([]);
   const [selectedSession, setSelectedSession] = useState<{
     agentName: string;
     sessionName: string;
@@ -24,11 +33,34 @@ const Dashboard = () => {
     icon: string;
   } | null>(null);
 
+  const [meetingTypeFlow, setMeetingTypeFlow] = useState<"start" | "schedule" | null>(null);
+
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  const openSessionDetail = (agentName: string, sessionName: string, sessionId: string) => {
+  const openAutomateFlow = () => {
+    setCurrentView("automate-agents");
+    setSelectedAgent(null);
+    setSessionsForAgent([]);
+    setSelectedSession(null);
+  };
+
+  const openAgentSessions = (agent: TacitAgent) => {
+    setSelectedAgent(agent);
+    setCurrentView("automate-sessions");
+  };
+
+  const openSessionDetail = (session: SessionItem) => {
+    setSelectedSession({
+      agentName: session.agentName,
+      sessionName: session.sessionName,
+      sessionId: session.sessionId,
+    });
+    setCurrentView("session");
+  };
+
+  const openSessionDetailFromSidebar = (agentName: string, sessionName: string, sessionId: string) => {
     setSelectedSession({ agentName, sessionName, sessionId });
     setCurrentView("session");
     setIsSidebarOpen(false);
@@ -36,7 +68,19 @@ const Dashboard = () => {
 
   const backToDashboard = () => {
     setCurrentView("dashboard");
+    setSelectedAgent(null);
+    setSessionsForAgent([]);
     setSelectedSession(null);
+  };
+
+  const backToAgents = () => {
+    setCurrentView("automate-agents");
+    setSelectedAgent(null);
+    setSessionsForAgent([]);
+  };
+
+  const backToSessionsList = () => {
+    setCurrentView("automate-sessions");
   };
 
   const openConfigDrawer = (type: string, title: string, icon: string) => {
@@ -69,7 +113,7 @@ const Dashboard = () => {
       <SessionsSidebar
         isOpen={isSidebarOpen}
         onClose={toggleSidebar}
-        onSessionClick={openSessionDetail}
+        onSessionClick={openSessionDetailFromSidebar}
       />
 
       {/* Sidebar Overlay */}
@@ -82,22 +126,59 @@ const Dashboard = () => {
 
       {/* Main Content */}
       <div className="max-w-[1600px] mx-auto px-8 py-16">
-        {currentView === "dashboard" ? (
+        {currentView === "dashboard" && (
           <DashboardView
-            onStartSession={() => setIsStartModalOpen(true)}
-            onScheduleSession={() => setIsScheduleModalOpen(true)}
-            onAutomateSessions={toggleSidebar}
+            onStartSession={() => setMeetingTypeFlow("start")}
+            onScheduleSession={() => setMeetingTypeFlow("schedule")}
+            onAutomateSessions={openAutomateFlow}
           />
-        ) : (
+        )}
+        {currentView === "automate-agents" && (
+          <AutomateAgentPicker onSelectAgent={openAgentSessions} onBack={backToDashboard} />
+        )}
+        {currentView === "automate-sessions" && selectedAgent && (
+          <AutomateSessionsList
+            agent={selectedAgent}
+            onSelectSession={(session) => {
+              openSessionDetail(session);
+            }}
+            onSessionsLoaded={setSessionsForAgent}
+            onBack={backToAgents}
+          />
+        )}
+        {currentView === "session" && selectedSession && (
           <SessionDetailView
-            session={selectedSession!}
+            session={selectedSession}
+            sessions={sessionsForAgent}
+            onSessionChange={(s) =>
+              setSelectedSession({ agentName: s.agentName, sessionName: s.sessionName, sessionId: s.sessionId })
+            }
             onBack={backToDashboard}
+            onBackToSessions={sessionsForAgent.length > 0 ? backToSessionsList : undefined}
             onOpenConfigDrawer={openConfigDrawer}
           />
         )}
       </div>
 
-      {/* Modals */}
+      {/* Meeting type chooser + modals */}
+      <ChooseMeetingTypeModal
+        open={meetingTypeFlow !== null}
+        flow={meetingTypeFlow}
+        onClose={() => setMeetingTypeFlow(null)}
+        onContinueVirtual={() => {
+          setMeetingTypeFlow(null);
+          navigate("/meeting-type/coming-soon");
+        }}
+        onContinuePhone={() => {
+          if (meetingTypeFlow === "start") {
+            setIsStartModalOpen(true);
+          } else if (meetingTypeFlow === "schedule") {
+            setIsScheduleModalOpen(true);
+          }
+          setMeetingTypeFlow(null);
+        }}
+      />
+
       <StartSessionModal
         open={isStartModalOpen}
         onClose={() => setIsStartModalOpen(false)}

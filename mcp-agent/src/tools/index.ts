@@ -20,71 +20,38 @@ import {
   MCPTool,
 } from '../types/index.js';
 
+// Primary tools for the agent (validate user → meeting details → talk → store transcript → finalize)
 export const MCP_TOOLS: MCPTool[] = [
   {
     name: 'verify_user_and_start_session',
-    description: `VERIFICATION TOOL - DO NOT CALL UNTIL YOU HAVE BOTH VALUES.
-
-WHEN TO CALL THIS TOOL:
-- ONLY call this tool AFTER you have collected BOTH the meeting_code AND spoken_name from the user
-- DO NOT call this tool with empty arguments {}
-- DO NOT call this tool before asking the user for information
-
-STEP-BY-STEP PROCESS:
-1. When call starts, greet: "Hello! Welcome to Tacit. To get started, I'll need your 4-digit meeting code."
-2. WAIT for user to provide meeting code (they may say "1234" or "one two three four")
-3. After receiving meeting code, ask: "Thank you. Now please tell me your full name."
-4. WAIT for user to provide their full name
-5. ONLY NOW, call this tool with BOTH meeting_code and spoken_name
-
-REQUIRED PARAMETERS:
-- meeting_code: The 4-digit code the user provided (e.g., "1234")
-- spoken_name: The full name the user said (e.g., "John Doe")
-
-RESPONSE HANDLING:
-- If result="success" OR verified=true OR status="verified": This means SUCCESS. Say the "text" or "say_to_user" field EXACTLY as provided. DO NOT say "cannot verify" or "technical difficulties". Then proceed with conversation.
-- If result="error" OR verified=false OR status="verification_failed": This means FAILURE. Say the "text" or "say_to_user" field EXACTLY as provided. Then ask user to try again.
-
-CRITICAL RULES:
-- Never call this tool with empty arguments {}
-- Never call this tool before collecting both meeting_code and spoken_name
-- Always check result="success" or verified=true before proceeding
-- Always say the "text" or "say_to_user" field when verification succeeds`,
+    description: `Validate user and start the call session. Call ONLY after you have BOTH meeting_code and spoken_name from the user.
+Steps: (1) Greet and ask for 4-digit meeting code. (2) Ask for full name. (3) Call this tool with meeting_code and spoken_name.
+Required: meeting_code (string), spoken_name (string). On success returns call_session_id, agenda, and agent_hints in one response—do NOT call get_meeting_context; use this response and respond immediately. Use call_session_id for persist_transcript and finalize_call_session.`,
     inputSchema: VerifyUserAndStartSessionSchema,
   },
   {
-    name: 'create_or_get_call_session',
-    description: 'Legacy tool - DO NOT USE. Use verify_user_and_start_session instead.',
-    inputSchema: CreateOrGetCallSessionSchema,
-  },
-  {
-    name: 'verify_spoken_join',
-    description: 'Legacy tool - DO NOT USE. Use verify_user_and_start_session instead.',
-    inputSchema: VerifySpokenJoinSchema,
-  },
-  {
     name: 'get_meeting_context',
-    description: 'Get meeting context including agenda, title, and agent hints. Use this during the conversation to refresh your understanding of what to discuss.',
+    description: 'Optional: retrieve meeting details (title, agenda, invitee, agent hints). Usually not needed—verification success already returns agenda and hints. Only call if you need to re-fetch context. Required: call_session_id (from verify_user_and_start_session).',
     inputSchema: GetMeetingContextSchema,
   },
   {
     name: 'persist_transcript',
-    description: 'Save transcript to database and storage',
+    description: 'Store the conversation transcript in the database and Supabase Storage. Call during or at the end of the meeting to save the transcript. Required: call_session_id, raw_transcript (e.g. { messages: [...] }). Optional: normalized_transcript.',
     inputSchema: PersistTranscriptSchema,
   },
   {
-    name: 'persist_summary',
-    description: 'Save meeting summary to database and storage',
-    inputSchema: PersistSummarySchema,
-  },
-  {
     name: 'finalize_call_session',
-    description: 'Mark a call session as completed or failed',
+    description: 'Mark the call session as completed or failed and save the transcript. Call when the meeting ends. Required: call_session_id, status ("completed" or "failed"). You MUST pass raw_transcript with the conversation transcript (e.g. { messages: [...] }) so the call is saved to the database. Optional: ended_at_iso (defaults to now), duration_sec, normalized_transcript.',
     inputSchema: FinalizeCallSessionSchema,
   },
   {
+    name: 'persist_summary',
+    description: 'Save meeting summary (key points, action items) to the database and storage. Optional: call after generating a summary.',
+    inputSchema: PersistSummarySchema,
+  },
+  {
     name: 'generate_summary_from_transcript',
-    description: 'Generate a summary from transcript using LLM and persist it',
+    description: 'Generate a summary from transcript using LLM and persist it. Optional: call after persist_transcript to create and store a summary.',
     inputSchema: GenerateSummaryFromTranscriptSchema,
   },
 ];
@@ -162,7 +129,9 @@ export async function executeTool(toolName: string, input: any): Promise<any> {
       if (missingFields) {
         // Provide helpful guidance for common missing parameters
         let guidance = '';
-        if (missingFields.includes('call_session_id') && toolName === 'verify_spoken_join') {
+        if (missingFields.includes('call_session_id') && toolName === 'get_meeting_context') {
+          guidance = ' get_meeting_context requires call_session_id from verify_user_and_start_session. Do NOT call get_meeting_context until after verification succeeds. First ask for meeting code and name, call verify_user_and_start_session; use the call_session_id from that response when calling get_meeting_context.';
+        } else if (missingFields.includes('call_session_id') && toolName === 'verify_spoken_join') {
           guidance = ' Note: Use verify_user_and_start_session instead - it verifies the user first, then creates the session.';
         } else if (missingFields.includes('meeting_code')) {
           guidance = ' ACTION REQUIRED: Greet the user and ask: "Hello! Welcome to Tacit. To get started, please tell me your 4-digit meeting code." Wait for their response, then call this tool again with the meeting_code.';

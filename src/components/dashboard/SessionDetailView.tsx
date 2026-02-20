@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { GeneratedAssets } from "./GeneratedAssets";
 import { AutomationOptions } from "./AutomationOptions";
+import type { SessionItem } from "./AutomateSessionsList";
 
 interface SessionDetailViewProps {
   session: {
@@ -8,11 +9,23 @@ interface SessionDetailViewProps {
     sessionName: string;
     sessionId: string;
   };
+  /** When provided, show "Choose the session to automate" dropdown and allow switching. */
+  sessions?: SessionItem[];
+  onSessionChange?: (session: SessionItem) => void;
   onBack: () => void;
+  /** When provided, show a link/button to go back to the sessions list (same agent). */
+  onBackToSessions?: () => void;
   onOpenConfigDrawer: (type: string, title: string, icon: string) => void;
 }
 
-export function SessionDetailView({ session, onBack, onOpenConfigDrawer }: SessionDetailViewProps) {
+export function SessionDetailView({
+  session,
+  sessions = [],
+  onSessionChange,
+  onBack,
+  onBackToSessions,
+  onOpenConfigDrawer,
+}: SessionDetailViewProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(35);
   const [assets, setAssets] = useState<Array<{ type: string; title: string; icon: string; timestamp: string }>>([]);
@@ -69,22 +82,55 @@ export function SessionDetailView({ session, onBack, onOpenConfigDrawer }: Sessi
 
   return (
     <>
-      <div className="flex items-center gap-2 mb-8 text-[0.9rem] text-muted-foreground">
-        <a
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            onBack();
-          }}
-          className="text-muted-foreground no-underline transition-colors hover:text-primary"
+      <div className="flex items-center gap-2 mb-8 text-[0.9rem] text-muted-foreground flex-wrap">
+        <button
+          type="button"
+          onClick={onBack}
+          className="text-muted-foreground no-underline transition-colors hover:text-primary bg-transparent border-none cursor-pointer p-0"
         >
           Home
-        </a>
+        </button>
+        {onBackToSessions && (
+          <>
+            <span className="text-primary/40">|</span>
+            <button
+              type="button"
+              onClick={onBackToSessions}
+              className="text-muted-foreground no-underline transition-colors hover:text-primary bg-transparent border-none cursor-pointer p-0"
+            >
+              Sessions
+            </button>
+          </>
+        )}
         <span className="text-primary/40">|</span>
         <span className="text-muted-foreground">Automate Past Session</span>
         <span className="text-primary/40">|</span>
         <span className="text-primary font-semibold">{session.agentName}</span>
       </div>
+
+      {sessions.length > 0 && onSessionChange && (
+        <div className="mb-6">
+          <label htmlFor="session-select" className="block text-[0.85rem] font-bold text-primary/80 uppercase tracking-wide mb-2">
+            Choose the session to automate
+          </label>
+          <select
+            id="session-select"
+            value={session.sessionId}
+            onChange={(e) => {
+              const s = sessions.find((s) => s.sessionId === e.target.value);
+              if (s) onSessionChange(s);
+            }}
+            className="w-full max-w-md bg-card border-2 border-primary/30 rounded-xl px-4 py-3 text-foreground text-[0.95rem] focus:outline-none focus:border-primary"
+          >
+            {sessions.map((s) => (
+              <option key={s.sessionId} value={s.sessionId}>
+                {s.sessionName}
+                {s.startedAt ? ` · ${new Date(s.startedAt).toLocaleDateString()}` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="bg-card/50 border-2 border-primary/30 rounded-[20px] p-12 mb-12">
         <div className="flex justify-between items-start mb-8 pb-8 border-b border-primary/20">
@@ -99,7 +145,7 @@ export function SessionDetailView({ session, onBack, onOpenConfigDrawer }: Sessi
             <div className="text-[0.85rem] font-bold text-primary/80 uppercase tracking-wide">
               Agent Name
             </div>
-            <div className="text-[1.1rem] text-foreground font-medium">{session.agentName} (Rachael)</div>
+            <div className="text-[1.1rem] text-foreground font-medium">{session.agentName}</div>
           </div>
           <div className="flex flex-col gap-2">
             <div className="text-[0.85rem] font-bold text-primary/80 uppercase tracking-wide">
@@ -129,7 +175,7 @@ export function SessionDetailView({ session, onBack, onOpenConfigDrawer }: Sessi
           </div>
         </div>
 
-        <div className="bg-[rgba(0,0,0,0.3)] rounded-2xl p-10 text-center">
+        <div className="bg-black/30 rounded-2xl p-10 text-center">
           <button
             onClick={togglePlayPause}
             className="w-[120px] h-[120px] rounded-full bg-gradient-primary border-none text-primary-foreground text-5xl cursor-pointer mx-auto mb-6 flex items-center justify-center transition-all shadow-elegant hover:scale-105 hover:shadow-glow"

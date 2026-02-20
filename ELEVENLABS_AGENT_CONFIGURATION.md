@@ -1,5 +1,11 @@
 # ElevenLabs Agent Configuration Guide
 
+## Agent personality
+
+For how the agent should **act and speak** (tone, pace, what to say and avoid), see **[AGENT_PERSONALITY.md](../AGENT_PERSONALITY.md)**. Use it when writing or refining your ElevenLabs system prompt so the voice matches Tacit’s style (warm, professional, short sentences, say tool messages exactly).
+
+---
+
 ## Problem
 
 Even though the MCP tool returns `verified: true` and `status: "verified"`, the ElevenLabs agent says "technical difficulty verifying information" instead of the success message.

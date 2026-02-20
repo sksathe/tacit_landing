@@ -24,6 +24,15 @@ export default {
           foreground: "hsl(var(--primary-foreground))",
           glow: "hsl(var(--primary-glow))",
         },
+        "primary-dashboard": {
+          DEFAULT: "hsl(var(--primary-dashboard))",
+          foreground: "hsl(var(--primary-dashboard-foreground))",
+          glow: "hsl(var(--primary-dashboard-glow))",
+        },
+        chart: {
+          "1": "hsl(var(--chart-1))",
+          "2": "hsl(var(--chart-2))",
+        },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
@@ -66,6 +75,9 @@ export default {
         'gradient-luxury': 'var(--gradient-luxury)',
       },
       boxShadow: {
+        sm: 'var(--shadow-sm)',
+        md: 'var(--shadow-md)',
+        lg: 'var(--shadow-lg)',
         'elegant': 'var(--shadow-elegant)',
         'glow': 'var(--shadow-glow)',
         'floating': 'var(--shadow-floating)',
