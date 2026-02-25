@@ -31,6 +31,7 @@ const Dashboard = () => {
     type: string;
     title: string;
     icon: string;
+    sessionId?: string | null;
   } | null>(null);
 
   const [meetingTypeFlow, setMeetingTypeFlow] = useState<"start" | "schedule" | null>(null);
@@ -84,7 +85,7 @@ const Dashboard = () => {
   };
 
   const openConfigDrawer = (type: string, title: string, icon: string) => {
-    setCurrentAutomation({ type, title, icon });
+    setCurrentAutomation({ type, title, icon, sessionId: selectedSession?.sessionId ?? null });
     setIsConfigDrawerOpen(true);
   };
 

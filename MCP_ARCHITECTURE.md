@@ -226,7 +226,7 @@ ElevenLabs Agent → MCP Server (via ngrok) → Your Backend
 ```json
 {
   "call_session_id": "uuid",
-  "model": "gpt-4",
+  "model": "gpt-4o-mini",
   "summary_text": "During this session, we discussed...",
   "key_points": [
     "API endpoint structure",
@@ -297,7 +297,7 @@ ElevenLabs Agent → MCP Server (via ngrok) → Your Backend
 {
   "call_session_id": "uuid",
   "transcript": {...},
-  "model": "gpt-4",
+  "model": "gpt-4o-mini",
   "idempotency_key": "unique-key-303"
 }
 ```

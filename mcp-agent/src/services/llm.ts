@@ -4,9 +4,9 @@
  */
 
 const LLM_PROVIDER = process.env.LLM_PROVIDER || 'openai'; // 'openai' or 'anthropic'
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY?.trim();
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const LLM_MODEL = process.env.LLM_MODEL || 'gpt-4';
+const LLM_MODEL = process.env.LLM_MODEL || 'gpt-4o-mini';
 
 export interface SummaryResult {
   summary_text: string;
@@ -22,7 +22,15 @@ export async function generateSummary(
     ? transcript 
     : JSON.stringify(transcript, null, 2);
 
-  const prompt = `You are analyzing a transcript from a knowledge capture session. Generate a comprehensive summary with the following structure:
+  const prompt = `You are analyzing a transcript from a knowledge capture session.
+
+CRITICAL CONSTRAINTS:
+- You must only use information that is explicitly present in the transcript text.
+- Do NOT invent or infer new facts, numbers, names, dates, companies, or metrics.
+- If something is not stated in the transcript, say it is \"not specified in the transcript\" instead of guessing.
+- Do NOT use external knowledge or assumptions; stay strictly grounded in the transcript content.
+
+Generate a comprehensive summary with the following structure:
 
 1. Summary Text: A 2-3 paragraph summary of the conversation
 2. Key Points: A bulleted list of 5-10 key insights or topics discussed

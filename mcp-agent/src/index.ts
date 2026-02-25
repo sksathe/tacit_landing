@@ -2,9 +2,36 @@ import 'dotenv/config';
 import express from 'express';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { MCP_TOOLS, executeTool } from './tools/index.js';
+import { supabase } from './services/supabase.js';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+import { promises as fs } from 'node:fs';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
+
+// File logging: store tool call logs under mcp-agent/logs with timestamped filename
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const LOG_DIR = resolve(__dirname, '..', 'logs');
+const LOG_FILE = resolve(
+  LOG_DIR,
+  `tool-calls-${new Date().toISOString().replace(/[:.]/g, '-')}Z.log`
+);
+let logsInitialized = false;
+
+async function ensureLogDir(): Promise<void> {
+  if (logsInitialized) return;
+  try {
+    await fs.mkdir(LOG_DIR, { recursive: true });
+    logsInitialized = true;
+  } catch (err) {
+    console.warn(
+      '⚠️ Failed to create log directory:',
+      (err as any)?.message ?? String(err)
+    );
+  }
+}
 
 // CORS middleware for ElevenLabs (must be before routes)
 app.use((req, res, next) => {
@@ -108,6 +135,66 @@ function toToolJsonSchema(tool: (typeof MCP_TOOLS)[number]): { name: string; des
   }
 }
 
+// Helper: log meeting + session context for every tool call
+async function logToolContext(
+  toolName: string,
+  args: unknown,
+  result: unknown,
+): Promise<void> {
+  try {
+    const input = (args || {}) as Record<string, any>;
+    const output = (result || {}) as Record<string, any>;
+
+    const callSessionId =
+      input.call_session_id ||
+      output.call_session_id ||
+      (output.meeting_context && (output.meeting_context as any).call_session_id) ||
+      null;
+
+    if (!callSessionId) {
+      const logRecord = {
+        timestamp: new Date().toISOString(),
+        tool: toolName,
+        call_session_id: null as string | null,
+        meeting_id: null as string | null,
+      };
+      console.log('📝 Tool context:', logRecord);
+      await ensureLogDir();
+      await fs.appendFile(LOG_FILE, JSON.stringify(logRecord) + '\n');
+      return;
+    }
+
+    const { data: callSession, error } = await supabase
+      .from('call_sessions')
+      .select('id, meeting_id')
+      .eq('id', callSessionId)
+      .maybeSingle();
+
+    const meetingId = callSession?.meeting_id ?? null;
+
+    if (error) {
+      console.warn('⚠️ Failed to load call_session for logging:', {
+        tool: toolName,
+        call_session_id: callSessionId,
+        error: error.message,
+      });
+    }
+
+    const logRecord = {
+      timestamp: new Date().toISOString(),
+      tool: toolName,
+      call_session_id: callSessionId,
+      meeting_id: meetingId,
+    };
+
+    console.log('📝 Tool context:', logRecord);
+    await ensureLogDir();
+    await fs.appendFile(LOG_FILE, JSON.stringify(logRecord) + '\n');
+  } catch (err) {
+    console.warn('⚠️ Failed to log tool context:', { tool: toolName, error: (err as any)?.message ?? String(err) });
+  }
+}
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -135,6 +222,7 @@ app.post('/tools/call', async (req, res) => {
     }
 
     const rawResult = await executeTool(name, args);
+    await logToolContext(name, args, rawResult);
     const mcpResult = toMCPToolResult(name, rawResult as Record<string, unknown>);
     res.json({ result: mcpResult });
   } catch (error: any) {
@@ -325,6 +413,7 @@ RULES:
           const result = await executeTool(toolName, toolArgs);
           console.log('✅ Tool executed successfully:', toolName);
           console.log('📤 Tool result:', JSON.stringify(result, null, 2));
+          await logToolContext(toolName, toolArgs, result);
           
           // For verify_user_and_start_session, ensure explicit success indicators
           // Also add ElevenLabs-friendly format
@@ -513,6 +602,7 @@ RULES:
         let result = await executeTool(sseToolName, toolArgs);
         console.log('✅ SSE Tool executed successfully:', sseToolName);
         console.log('📤 SSE Tool result (before processing):', JSON.stringify(result, null, 2));
+        await logToolContext(sseToolName, toolArgs, result);
         
         // Apply same success indicators as non-SSE mode
         if (sseToolName === 'verify_user_and_start_session') {

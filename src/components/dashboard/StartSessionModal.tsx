@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Search } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { TACIT_AGENTS } from "@/data/agents";
 import { SelectedAgentDescription } from "./SelectedAgentDescription";
 
@@ -18,6 +20,10 @@ export function StartSessionModal({ open, onClose }: StartSessionModalProps) {
     inviteeEmail: "",
     sessionNotes: "",
   });
+
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const agents = TACIT_AGENTS;
 
@@ -51,18 +57,118 @@ export function StartSessionModal({ open, onClose }: StartSessionModalProps) {
     };
   }, [isSearchFocused]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedAgent && formData.sessionTitle && formData.inviteeEmail) {
-      const agentName = agents.find((a) => a.id === selectedAgent)?.name ?? selectedAgent;
-      alert(
-        `Session Started!\n\nAgent: ${agentName}\nTitle: ${formData.sessionTitle}\nInvitee: ${formData.inviteeEmail}\n\nIn a real application, an email with your unique phone number would be sent to the SME.`
-      );
+    if (!selectedAgent || !formData.sessionTitle || !formData.inviteeEmail) return;
+
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to start a session.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { data: { session } } = await (await import("@/integrations/supabase/client")).supabase.auth.getSession();
+      if (!session) {
+        throw new Error("Not authenticated");
+      }
+
+      const API_URL = import.meta.env.VITE_API_URL || "";
+      const projectsResponse = await fetch(`${API_URL}/api/projects`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!projectsResponse.ok) throw new Error("Failed to fetch projects");
+
+      const projectsData = await projectsResponse.json();
+      const projects = projectsData?.projects ?? projectsData ?? [];
+      if (!Array.isArray(projects) || projects.length === 0) {
+        throw new Error("No projects found. Please create a project first.");
+      }
+      const projectId = projects[0].id;
+
+      const now = new Date();
+      const scheduledStartAt = now.toISOString();
+      const scheduledEndAt = new Date(now.getTime() + 60 * 60 * 1000).toISOString(); // 1 hour from now
+
+      const inviteeEmails = formData.inviteeEmail.split(",").map((e) => e.trim()).filter(Boolean);
+      const invitees = inviteeEmails.map((email) => ({
+        name: email.split("@")[0] || "Invitee",
+        email,
+      }));
+
+      const selectedAgentData = agents.find((a) => a.id === selectedAgent);
+      const agentPayload = selectedAgentData
+        ? {
+            agent: {
+              name: selectedAgentData.name,
+              tagline: selectedAgentData.tagline,
+              role: selectedAgentData.role,
+              persona: selectedAgentData.persona,
+              description: selectedAgentData.description,
+              descriptionContinued: selectedAgentData.descriptionContinued,
+              specialties: selectedAgentData.specialties,
+            },
+          }
+        : {};
+
+      const meetingResponse = await fetch(`${API_URL}/api/meetings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          project_id: projectId,
+          title: formData.sessionTitle,
+          agenda: formData.sessionNotes || undefined,
+          scheduled_start_at: scheduledStartAt,
+          scheduled_end_at: scheduledEndAt,
+          invitees,
+          ...agentPayload,
+        }),
+      });
+
+      if (!meetingResponse.ok) {
+        const err = await meetingResponse.json();
+        throw new Error(err.error || "Failed to create meeting");
+      }
+
+      const data = await meetingResponse.json();
+      const inviteEmailsSent = data.inviteEmailsSent !== false;
+      const inviteEmailErrors = data.inviteEmailErrors as { email: string; error: string }[] | undefined;
+
+      if (inviteEmailsSent) {
+        toast({
+          title: "Session started",
+          description: invitees.length > 1
+            ? `Invitation email sent to ${invitees.length} invitees with call-in number and access code.`
+            : `Invitation email sent to ${formData.inviteeEmail} with call-in number and access code.`,
+        });
+      } else {
+        toast({
+          title: "Session created, but invite email failed",
+          description: inviteEmailErrors?.[0]?.error ?? "Set RESEND_API_KEY in server-api/.env to send invite emails.",
+          variant: "destructive",
+        });
+      }
       onClose();
       setSelectedAgent(null);
       setSearchQuery("");
       setIsSearchFocused(false);
       setFormData({ sessionTitle: "", inviteeEmail: "", sessionNotes: "" });
+    } catch (error: any) {
+      console.error("Error starting session:", error);
+      toast({
+        title: "Failed to start session",
+        description: error.message || "Could not create meeting or send invite.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -95,7 +201,7 @@ export function StartSessionModal({ open, onClose }: StartSessionModalProps) {
           Start New Tacit Session NOW
         </h2>
         <p className="text-muted-foreground mb-8 text-center text-base">
-        Pick an agent, set a time, and we’ll send the invitee a calendar invite with a dedicated phone number and access code.
+        Pick an agent and we’ll send the invitee an email with the call-in number and access code so they can join now.
         </p>
 
         {/* Netflix-style Search Bar */}
@@ -219,10 +325,10 @@ export function StartSessionModal({ open, onClose }: StartSessionModalProps) {
 
           <button
             type="submit"
-            disabled={!selectedAgent || !formData.sessionTitle || !formData.inviteeEmail}
+            disabled={!selectedAgent || !formData.sessionTitle || !formData.inviteeEmail || isSubmitting}
             className="w-full bg-primary text-primary-foreground px-5 py-4 rounded-xl text-[1.1rem] font-bold cursor-pointer transition-all border-none shadow-elegant hover:bg-primary-glow hover:shadow-glow hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 mt-4"
           >
-            Submit & Send Invite
+            {isSubmitting ? "Sending invite…" : "Submit & Send Invite"}
           </button>
         </form>
       </div>

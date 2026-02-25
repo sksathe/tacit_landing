@@ -19,7 +19,7 @@ export async function persistTranscript(
     // Get call session to derive org/project/meeting IDs
     const { data: callSession, error: sessionError } = await supabase
       .from('call_sessions')
-      .select('org_id, project_id, meeting_id')
+      .select('id, org_id, project_id, meeting_id, meeting:meetings(agent_name)')
       .eq('id', call_session_id)
       .single();
 
@@ -35,6 +35,9 @@ export async function persistTranscript(
       call_session_id,
       raw_transcript
     );
+
+    const meeting = callSession.meeting as any | undefined;
+    const agentName = meeting?.agent_name || null;
 
     // Find existing transcript for this call session (no UNIQUE on call_session_id in schema)
     const { data: existing } = await supabase
@@ -52,6 +55,8 @@ export async function persistTranscript(
         .update({
           raw: raw_transcript,
           normalized: normalized_transcript ?? null,
+          meeting_id: callSession.meeting_id,
+          agent_name: agentName,
         })
         .eq('id', existing.id);
 
@@ -66,6 +71,8 @@ export async function persistTranscript(
           call_session_id,
           org_id: callSession.org_id,
           project_id: callSession.project_id,
+          meeting_id: callSession.meeting_id,
+          agent_name: agentName,
           raw: raw_transcript,
           normalized: normalized_transcript ?? null,
         })
@@ -83,6 +90,24 @@ export async function persistTranscript(
       .from('call_sessions')
       .update({ transcript_path: transcriptPath })
       .eq('id', call_session_id);
+
+    // Ensure only the latest transcript per meeting:
+    // for this meeting_id, remove transcripts for any other call_sessions
+    if (callSession.meeting_id) {
+      const { data: otherSessions } = await supabase
+        .from('call_sessions')
+        .select('id')
+        .eq('meeting_id', callSession.meeting_id)
+        .neq('id', call_session_id);
+
+      const otherIds = (otherSessions || []).map((s: { id: string }) => s.id);
+      if (otherIds.length > 0) {
+        await supabase
+          .from('transcripts')
+          .delete()
+          .in('call_session_id', otherIds);
+      }
+    }
 
     return {
       transcript_id: transcriptId,

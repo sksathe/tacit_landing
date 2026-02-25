@@ -61,7 +61,7 @@ export const FinalizeCallSessionSchema = z.object({
 export const GenerateSummaryFromTranscriptSchema = z.object({
   call_session_id: z.string().uuid(),
   transcript: z.any(),
-  model: z.string().default('gpt-4'),
+  model: z.string().default('gpt-4o-mini'),
   idempotency_key: z.string().optional(), // Auto-generated if not provided
 });
 

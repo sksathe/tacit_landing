@@ -3,6 +3,8 @@ import { Resend } from 'resend';
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const TWILIO_NUMBER = process.env.TWILIO_NUMBER || '+1 (980) 499-5308';
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:5173';
+/** From address. Use onboarding@resend.dev for testing (no domain verification). Set EMAIL_FROM for production. */
+const EMAIL_FROM = process.env.EMAIL_FROM || 'Tacit <onboarding@resend.dev>';
 
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
@@ -151,11 +153,13 @@ ${agent_card ? `
   `.trim();
 }
 
-export async function sendMeetingInviteEmail(params: MeetingInviteEmailParams): Promise<void> {
+export type SendMeetingInviteResult = { ok: true } | { ok: false; error: string };
+
+export async function sendMeetingInviteEmail(params: MeetingInviteEmailParams): Promise<SendMeetingInviteResult> {
   if (!resend) {
     console.warn('⚠️ Resend API key not configured, skipping email send');
     console.warn('💡 Set RESEND_API_KEY in server-api/.env to enable email sending');
-    return;
+    return { ok: false, error: 'Email not configured (RESEND_API_KEY missing)' };
   }
 
   const { inviteeName, inviteeEmail, meetingTitle, meetingCode, scheduledStartAt, scheduledEndAt, agenda, agentName, agentCard } = params;
@@ -199,7 +203,7 @@ Agenda: ${agenda_text}
 
   try {
     const result = await resend.emails.send({
-      from: 'Tacit <noreply@scenergy.design>',
+      from: EMAIL_FROM,
       to: inviteeEmail,
       subject: `Session Scheduled: ${meetingTitle}`,
       text: textBody,
@@ -207,24 +211,20 @@ Agenda: ${agenda_text}
     });
 
     console.log(`✅ Email sent successfully to ${inviteeEmail}:`, (result as { data?: { id?: string } })?.data?.id ?? result);
+    return { ok: true };
   } catch (error: any) {
-    // Log detailed error but don't throw - meeting creation should succeed even if email fails
     console.error(`❌ Failed to send email to ${inviteeEmail}:`, error);
     console.error('Error details:', {
       message: error?.message,
       name: error?.name,
       statusCode: error?.statusCode,
     });
-    
-    // Provide helpful error message
     if (error?.message?.includes('domain')) {
-      console.error('💡 Tip: Verify your domain in Resend dashboard or use onboarding@resend.dev for testing');
+      console.error('💡 Tip: Set EMAIL_FROM=Tacit <onboarding@resend.dev> in server-api/.env for testing');
     }
     if (error?.message?.includes('API key')) {
-      console.error('💡 Tip: Check your RESEND_API_KEY in server-api/.env');
+      console.error('💡 Tip: Check RESEND_API_KEY in server-api/.env');
     }
-    
-    // Don't throw - let meeting creation succeed even if email fails
-    // The error is already logged for debugging
+    return { ok: false, error: error?.message || 'Failed to send email' };
   }
 }

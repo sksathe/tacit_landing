@@ -262,7 +262,7 @@ Saves summary to database and storage.
 ```json
 {
   "call_session_id": "uuid",
-  "model": "gpt-4",
+  "model": "gpt-4o-mini",
   "summary_text": "...",
   "key_points": ["..."],
   "action_items": [...],
@@ -292,7 +292,7 @@ Generates summary from transcript using LLM.
 {
   "call_session_id": "uuid",
   "transcript": {...},
-  "model": "gpt-4",
+  "model": "gpt-4o-mini",
   "idempotency_key": "unique-key-303"
 }
 ```

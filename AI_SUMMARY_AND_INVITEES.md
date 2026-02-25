@@ -21,7 +21,7 @@ The AI summary tool (`generate_summary_from_transcript`) exists but is **not aut
 1. **Configure LLM API Keys** (in `mcp-agent/.env`):
    ```env
    LLM_PROVIDER=openai  # or 'anthropic'
-   LLM_MODEL=gpt-4      # or 'claude-3-opus-20240229'
+   LLM_MODEL=gpt-4o-mini      # or 'claude-3-opus-20240229'
    OPENAI_API_KEY=sk-... # or ANTHROPIC_API_KEY=sk-ant-...
    ```
 

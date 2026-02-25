@@ -97,6 +97,7 @@ router.post('/', authMiddleware, async (req: AuthenticatedRequest, res: Response
         meeting_code_norm: meetingCodeNorm,
         twilio_number: process.env.TWILIO_NUMBER || '+1 (980) 499-5308',
         status: 'scheduled',
+        agent_name: body.agent?.name || null,
       })
       .select()
       .single();
@@ -120,10 +121,10 @@ router.post('/', authMiddleware, async (req: AuthenticatedRequest, res: Response
 
     if (inviteesError) throw inviteesError;
 
-    // Send invite emails (async, don't wait)
-    Promise.all(
-      body.invitees.map(invitee =>
-        sendMeetingInviteEmail({
+    // Send invite emails and await so we can report success/failure
+    const emailResults = await Promise.all(
+      body.invitees.map(async (invitee) => {
+        const result = await sendMeetingInviteEmail({
           inviteeName: invitee.name,
           inviteeEmail: invitee.email,
           meetingTitle: body.title,
@@ -143,15 +144,20 @@ router.post('/', authMiddleware, async (req: AuthenticatedRequest, res: Response
                 specialties: body.agent.specialties,
               }
             : undefined,
-        }).catch(err => console.error(`Failed to send email to ${invitee.email}:`, err))
-      )
-    ).catch(err => console.error('Error sending emails:', err));
+        });
+        return { email: invitee.email, ...result };
+      })
+    );
+    const inviteEmailsSent = emailResults.every((r) => r.ok);
+    const inviteEmailErrors = emailResults.filter((r) => !r.ok).map((r) => ({ email: r.email, error: (r as { error: string }).error }));
 
     res.status(201).json({
       meeting: {
         ...meeting,
         invitees: createdInvitees,
       },
+      inviteEmailsSent,
+      inviteEmailErrors: inviteEmailErrors.length ? inviteEmailErrors : undefined,
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {

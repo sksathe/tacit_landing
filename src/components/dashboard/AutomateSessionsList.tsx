@@ -18,7 +18,7 @@ interface AutomateSessionsListProps {
   onBack: () => void;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 export function AutomateSessionsList({ agent, onSelectSession, onSessionsLoaded, onBack }: AutomateSessionsListProps) {
   const [sessions, setSessions] = useState<SessionItem[]>([]);
@@ -32,11 +32,26 @@ export function AutomateSessionsList({ agent, onSelectSession, onSessionsLoaded,
       setLoading(true);
       setError(null);
       try {
+        const { data: { session } } = await (await import("@/integrations/supabase/client")).supabase.auth.getSession();
+        if (!session) {
+          const mock = getMockSessions(agent);
+          setSessions(mock);
+          onSessionsLoaded?.(mock);
+          setLoading(false);
+          return;
+        }
+
         const projectsRes = await fetch(`${API_URL}/api/projects`, {
           credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
         });
-        if (!projectsRes.ok || cancelled) return;
+        if (!projectsRes.ok || cancelled) {
+          setLoading(false);
+          return;
+        }
         const projectsData = await projectsRes.json();
         const projects = projectsData?.projects ?? projectsData ?? [];
         const projectId = Array.isArray(projects) && projects.length > 0 ? projects[0].id : null;
@@ -51,15 +66,25 @@ export function AutomateSessionsList({ agent, onSelectSession, onSessionsLoaded,
 
         const sessionsRes = await fetch(`${API_URL}/api/sessions/project/${projectId}`, {
           credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
         });
         if (!sessionsRes.ok) throw new Error("Failed to load sessions");
         const data = await sessionsRes.json();
         const list = data?.sessions ?? [];
-        const items: SessionItem[] = list.map((s: any) => ({
+        // Only show sessions for this agent (meeting.agent_name or transcript.agent_name)
+        const agentNameLower = agent.name.toLowerCase();
+        const forThisAgent = list.filter((s: any) => {
+          const meetingAgent = (s.meeting?.agent_name || "").toLowerCase();
+          const transcriptAgent = (s.transcript?.agent_name || "").toLowerCase();
+          return meetingAgent === agentNameLower || transcriptAgent === agentNameLower;
+        });
+        const items: SessionItem[] = forThisAgent.map((s: any) => ({
           sessionId: s.id,
           sessionName: s.meeting?.title ?? `Session ${s.id.slice(0, 8)}`,
-          agentName: agent.name,
+          agentName: s.meeting?.agent_name || s.transcript?.agent_name || agent.name,
           meetingTitle: s.meeting?.title,
           startedAt: s.started_at,
           duration: s.duration_sec != null ? `${Math.round(Number(s.duration_sec) / 60)} min` : undefined,

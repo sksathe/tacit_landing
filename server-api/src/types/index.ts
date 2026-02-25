@@ -73,6 +73,8 @@ export interface Transcript {
   org_id: string;
   project_id: string;
   call_session_id: string;
+  meeting_id?: string | null;
+  agent_name?: string | null;
   raw: any;
   normalized: any | null;
   created_at: string;

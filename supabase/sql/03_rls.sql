@@ -197,3 +197,30 @@ CREATE POLICY "Users can read summaries in their projects"
             WHERE user_id = auth.uid()
         )
     );
+
+CREATE POLICY "Users can insert summaries in their projects"
+    ON summaries FOR INSERT
+    WITH CHECK (
+        project_id IN (
+            SELECT project_id 
+            FROM project_members 
+            WHERE user_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Users can update summaries in their projects"
+    ON summaries FOR UPDATE
+    USING (
+        project_id IN (
+            SELECT project_id 
+            FROM project_members 
+            WHERE user_id = auth.uid()
+        )
+    )
+    WITH CHECK (
+        project_id IN (
+            SELECT project_id 
+            FROM project_members 
+            WHERE user_id = auth.uid()
+        )
+    );

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface ConfigDrawerProps {
   open: boolean;
@@ -8,6 +9,7 @@ interface ConfigDrawerProps {
     type: string;
     title: string;
     icon: string;
+    sessionId?: string | null;
   } | null;
 }
 
@@ -18,6 +20,7 @@ export function ConfigDrawer({ open, onClose, automation }: ConfigDrawerProps) {
     additionalInstructions: "",
   });
   const [isProcessing, setIsProcessing] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (open && automation) {
@@ -31,27 +34,126 @@ export function ConfigDrawer({ open, onClose, automation }: ConfigDrawerProps) {
     }
   }, [open, automation]);
 
-  const handleRunAutomation = () => {
+  const handleRunAutomation = async () => {
     if (!automation) return;
 
     setIsProcessing(true);
 
-    // Simulate processing (2 seconds)
-    setTimeout(() => {
-      // Create generated asset
-      const event = new CustomEvent("assetGenerated", {
-        detail: {
-          type: automation.type,
-          title: automation.title,
-          icon: automation.icon,
-          config,
-        },
-      });
-      window.dispatchEvent(event);
+    try {
+      // Summary and clarity scorer automations are wired to the backend.
+      if (automation.type === "summary" && automation.sessionId) {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error("Not authenticated. Please log in.");
+        }
 
-      setIsProcessing(false);
+        const API_URL = import.meta.env.VITE_API_URL || "";
+        const response = await fetch(`${API_URL}/api/sessions/${automation.sessionId}/summary`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            tone: config.outputTone,
+            audience: config.targetAudience,
+            instructions: config.additionalInstructions,
+          }),
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to generate summary.");
+        }
+
+        const { summary } = await response.json();
+
+        toast({
+          title: "Summary generated",
+          description: "Executive summary created from this session's transcript.",
+        });
+
+        // Emit assetGenerated event so SessionDetailView shows a card
+        const event = new CustomEvent("assetGenerated", {
+          detail: {
+            type: automation.type,
+            title: automation.title,
+            icon: automation.icon,
+            config,
+            summary,
+          },
+        });
+        window.dispatchEvent(event);
+      } else if (automation.type === "clarity-scorer" && automation.sessionId) {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error("Not authenticated. Please log in.");
+        }
+
+        const API_URL = import.meta.env.VITE_API_URL || "";
+        const response = await fetch(`${API_URL}/api/sessions/${automation.sessionId}/clarity-score`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            instructions: config.additionalInstructions,
+          }),
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to generate clarity score.");
+        }
+
+        const { clarity } = await response.json();
+
+        toast({
+          title: "Clarity score generated",
+          description: "Transcript clarity analysis created for this session.",
+        });
+
+        const event = new CustomEvent("assetGenerated", {
+          detail: {
+            type: automation.type,
+            title: automation.title,
+            icon: automation.icon,
+            config,
+            clarity,
+          },
+        });
+        window.dispatchEvent(event);
+      } else {
+        // Other automations not yet wired; keep simulated behavior
+        const event = new CustomEvent("assetGenerated", {
+          detail: {
+            type: automation.type,
+            title: automation.title,
+            icon: automation.icon,
+            config,
+          },
+        });
+        window.dispatchEvent(event);
+      }
+
       onClose();
-    }, 2000);
+    } catch (error: any) {
+      console.error("Automation error:", error);
+      toast({
+        title: "Automation failed",
+        description: error.message || "Could not run this automation.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (!automation) return null;

@@ -85,7 +85,7 @@ export function ScheduleSessionModal({ open, onClose }: ScheduleSessionModalProp
       }
 
       // Get user's first project (or you can add project selection UI)
-      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+      const API_URL = import.meta.env.VITE_API_URL || "";
       const projectsResponse = await fetch(`${API_URL}/api/projects`, {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -152,14 +152,24 @@ export function ScheduleSessionModal({ open, onClose }: ScheduleSessionModalProp
         throw new Error(errorData.error || "Failed to create meeting");
       }
 
-      const { meeting } = await meetingResponse.json();
+      const data = await meetingResponse.json();
+      const inviteEmailsSent = data.inviteEmailsSent !== false;
+      const inviteEmailErrors = data.inviteEmailErrors as { email: string; error: string }[] | undefined;
 
-      toast({
-        title: "Session Scheduled!",
-        description: invitees.length > 1
-          ? `Meeting invitation sent to ${invitees.length} invitees.`
-          : `Meeting invitation has been sent to ${formData.inviteeEmail}`,
-      });
+      if (inviteEmailsSent) {
+        toast({
+          title: "Session Scheduled!",
+          description: invitees.length > 1
+            ? `Meeting invitation sent to ${invitees.length} invitees.`
+            : `Meeting invitation has been sent to ${formData.inviteeEmail}`,
+        });
+      } else {
+        toast({
+          title: "Session scheduled, but invite email failed",
+          description: inviteEmailErrors?.[0]?.error ?? "Set RESEND_API_KEY in server-api/.env to send invite emails.",
+          variant: "destructive",
+        });
+      }
 
       onClose();
       setSelectedAgent(null);

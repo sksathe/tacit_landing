@@ -39,6 +39,10 @@ CREATE TABLE IF NOT EXISTS meetings (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Optional agent name used for this meeting (e.g., \"Rachel\")
+ALTER TABLE meetings
+  ADD COLUMN IF NOT EXISTS agent_name TEXT;
+
 -- Meeting Invitees
 CREATE TABLE IF NOT EXISTS meeting_invitees (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -83,13 +87,18 @@ CREATE TABLE IF NOT EXISTS transcripts (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Link transcripts directly to meetings and store agent name for UI grouping
+ALTER TABLE transcripts
+  ADD COLUMN IF NOT EXISTS meeting_id UUID REFERENCES meetings(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS agent_name TEXT;
+
 -- Summaries
 CREATE TABLE IF NOT EXISTS summaries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id UUID NOT NULL REFERENCES orgs(id) ON DELETE CASCADE,
     project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     call_session_id UUID NOT NULL REFERENCES call_sessions(id) ON DELETE CASCADE,
-    model TEXT NOT NULL, -- e.g., 'gpt-4', 'claude-3-opus'
+    model TEXT NOT NULL, -- e.g., 'gpt-4o-mini', 'claude-3-opus'
     summary_text TEXT NOT NULL,
     key_points JSONB,
     action_items JSONB,

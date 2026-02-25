@@ -7,12 +7,19 @@ interface Asset {
 
 interface GeneratedAssetsProps {
   assets: Asset[];
+  /** Optional handler when user clicks "View" on an asset */
+  onViewAsset?: (asset: Asset) => void;
 }
 
-export function GeneratedAssets({ assets }: GeneratedAssetsProps) {
+export function GeneratedAssets({ assets, onViewAsset }: GeneratedAssetsProps) {
 
-  const viewAsset = (type: string) => {
-    alert(`Opening ${type} asset viewer!\n\nThis would display the generated content in a full viewer.`);
+  const viewAsset = (asset: Asset) => {
+    if (onViewAsset) {
+      onViewAsset(asset);
+      return;
+    }
+    // Fallback: no-op with console message instead of intrusive alert
+    console.warn("View asset clicked, but no handler provided.", asset);
   };
 
   const chatAsset = (type: string) => {
@@ -45,7 +52,7 @@ export function GeneratedAssets({ assets }: GeneratedAssetsProps) {
             </div>
             <div className="flex gap-4 flex-wrap">
               <button
-                onClick={() => viewAsset(asset.type)}
+                onClick={() => viewAsset(asset)}
                 className="bg-primary text-primary-foreground px-8 py-3 rounded-lg text-[0.95rem] font-semibold cursor-pointer transition-all border-none hover:bg-primary-glow hover:shadow-elegant"
               >
                 View

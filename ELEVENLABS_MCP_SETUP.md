@@ -262,7 +262,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 # Optional (for LLM summaries)
 OPENAI_API_KEY=sk-...  # or ANTHROPIC_API_KEY
 LLM_PROVIDER=openai  # or anthropic
-LLM_MODEL=gpt-4
+LLM_MODEL=gpt-4o-mini
 ```
 
 ---
