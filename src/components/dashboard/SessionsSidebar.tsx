@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { TACIT_AGENTS } from "@/data/agents";
+import { AgentAvatar } from "./AgentAvatar";
 
 interface SessionsSidebarProps {
   isOpen: boolean;
@@ -78,7 +79,7 @@ export function SessionsSidebar({ isOpen, onClose, onSessionClick }: SessionsSid
                     : "border-l-transparent hover:bg-primary/8 hover:border-l-primary/50"
                 }`}
               >
-                <span className="text-[1.2rem] w-6 flex items-center justify-center">{agent.icon}</span>
+                <AgentAvatar agent={agent} size="sm" />
                 <span className="flex-1 font-semibold text-[0.95rem]">{agent.name}</span>
                 <span className={`text-[0.75rem] transition-transform duration-300 ${expanded ? "rotate-90" : ""}`}>▶</span>
               </div>

@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { TACIT_AGENTS } from "@/data/agents";
 import { SelectedAgentDescription } from "./SelectedAgentDescription";
+import { AgentAvatar } from "./AgentAvatar";
 
 interface StartSessionModalProps {
   open: boolean;
@@ -237,7 +238,7 @@ export function StartSessionModal({ open, onClose }: StartSessionModalProps) {
                           : "hover:bg-white/10 border border-transparent"
                       }`}
                     >
-                      <div className="flex-shrink-0 text-3xl">{agent.icon}</div>
+                      <AgentAvatar agent={agent} size="md" />
                       <div className="flex-1 min-w-0">
                         <div className="text-white font-semibold text-lg mb-0.5">{agent.name}</div>
                         <div className="text-white/80 text-sm font-medium">{agent.tagline}</div>

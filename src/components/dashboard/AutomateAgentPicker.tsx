@@ -1,5 +1,6 @@
 import { ChevronLeft } from "lucide-react";
 import { TACIT_AGENTS, type TacitAgent } from "@/data/agents";
+import { AgentAvatar } from "./AgentAvatar";
 
 interface AutomateAgentPickerProps {
   onSelectAgent: (agent: TacitAgent) => void;
@@ -37,7 +38,7 @@ export function AutomateAgentPicker({ onSelectAgent, onBack }: AutomateAgentPick
             onClick={() => onSelectAgent(agent)}
             className="bg-card/50 border-2 border-primary/30 rounded-2xl p-6 text-left transition-all duration-300 hover:border-primary hover:shadow-elegant hover:-translate-y-1 flex flex-col items-start gap-3"
           >
-            <span className="text-3xl" aria-hidden>{agent.icon}</span>
+            <AgentAvatar agent={agent} size="lg" />
             <div>
               <div className="font-bold text-[1.1rem] text-foreground">{agent.name}</div>
               <div className="text-[0.85rem] text-muted-foreground">{agent.tagline}</div>

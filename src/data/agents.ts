@@ -7,7 +7,10 @@ export interface TacitAgent {
   name: string;
   /** Short line for search results and list (e.g. "Finance Strategy Expert") */
   tagline: string;
+  /** Fallback emoji if image is unavailable */
   icon: string;
+  /** Optional image used as the primary avatar for this agent (served from /images or similar) */
+  image?: string;
   /** Role label (e.g. "AI Finance Partner") */
   role: string;
   /** Persona traits, shown as bullet-separated (e.g. "Analytical • Strategic • Data-driven") */
@@ -28,6 +31,7 @@ export const TACIT_AGENTS: TacitAgent[] = [
     name: "Rachel",
     tagline: "Finance Strategy Expert",
     icon: "🟣",
+    image: "/images/rachel.png",
     role: "AI Finance Partner",
     persona: "Analytical • Strategic • Data-driven • Decisive",
     description:
@@ -61,6 +65,7 @@ export const TACIT_AGENTS: TacitAgent[] = [
     name: "Ross",
     tagline: "Compliance & Risk Specialist",
     icon: "🔵",
+    image: "/images/ross.png",
     role: "AI Compliance Officer",
     persona: "Structured • Detail-oriented • Risk-aware • Methodical",
     description:
@@ -91,6 +96,7 @@ export const TACIT_AGENTS: TacitAgent[] = [
     name: "Monica",
     tagline: "Operations Excellence Lead",
     icon: "🟠",
+    image: "/images/monica.png",
     role: "AI Operations Partner",
     persona: "Organized • Process-focused • Efficient • Reliable",
     description:
@@ -121,6 +127,7 @@ export const TACIT_AGENTS: TacitAgent[] = [
     name: "Chandler",
     tagline: "Data & Analytics Specialist",
     icon: "🟢",
+    image: "/images/chandler.png",
     role: "AI Data Partner",
     persona: "Curious • Precise • Insight-driven • Clear",
     description:
