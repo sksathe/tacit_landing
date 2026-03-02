@@ -1,5 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bot, MessageSquare, FileText, Search, Video, Share2, Brain, Zap, Users } from "lucide-react";
+import { Bot, MessageSquare, FileText, Search, Share2, Brain, Zap, Users } from "lucide-react";
 
 const Features = () => {
   const features = [
@@ -38,34 +38,34 @@ const Features = () => {
   return (
     <section id="features" className="py-20 bg-muted/30">
       <div className="container px-4 mx-auto">
-        <div className="text-center space-y-4 mb-16">
-          <div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
+        <div className="mb-16 space-y-4 text-center">
+          <div className="inline-flex items-center rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
             <Brain className="w-4 h-4 mr-2" />
             Core Features
           </div>
-          <h2 className="text-3xl lg:text-5xl font-bold">
+          <h2 className="text-3xl font-bold tracking-tight lg:text-5xl lg:leading-tight">
             Everything you need to capture{" "}
             <span className="bg-gradient-primary bg-clip-text text-transparent">
               tacit knowledge
             </span>
           </h2>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+          <p className="mx-auto max-w-3xl text-lg leading-relaxed text-muted-foreground lg:text-xl">
             From conversation to structured learning assets, our platform handles the entire knowledge extraction and synthesis process.
           </p>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {features.map((feature, index) => (
-            <Card key={index} className="relative overflow-hidden border-0 shadow-elegant hover:shadow-floating transition-smooth group focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-              <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-5 group-hover:opacity-10 transition-smooth`} />
-              <CardHeader className="relative">
-                <div className={`w-12 h-12 rounded-lg bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-4 shadow-glow`}>
+            <Card key={index} className="group relative h-full overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-elegant backdrop-blur-sm transition-smooth hover:-translate-y-1 hover:shadow-floating focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+              <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-5 transition-smooth group-hover:opacity-10`} />
+              <CardHeader className="relative pb-4">
+                <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br ${feature.gradient} shadow-glow`}>
                   <feature.icon className="h-6 w-6 text-white" />
                 </div>
-                <CardTitle className="text-xl">{feature.title}</CardTitle>
+                <CardTitle className="text-xl tracking-tight">{feature.title}</CardTitle>
               </CardHeader>
               <CardContent className="relative">
-                <CardDescription className="text-base">
+                <CardDescription className="text-base leading-relaxed">
                   {feature.description}
                 </CardDescription>
               </CardContent>
@@ -75,7 +75,7 @@ const Features = () => {
 
         {/* CTA Section */}
         <div className="text-center mt-16">
-          <div className="inline-flex items-center space-x-8 bg-card p-6 rounded-2xl shadow-floating animate-float">
+          <div className="inline-flex flex-col items-center gap-4 rounded-2xl border border-border/60 bg-card/80 p-5 shadow-floating backdrop-blur-sm sm:flex-row sm:gap-8 sm:p-6">
             <div className="flex items-center space-x-2">
               <Users className="h-5 w-5 text-primary" />
               <span className="text-sm font-medium">500+ SMEs</span>

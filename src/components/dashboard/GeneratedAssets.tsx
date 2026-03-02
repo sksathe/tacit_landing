@@ -36,36 +36,45 @@ export function GeneratedAssets({ assets, onViewAsset }: GeneratedAssetsProps) {
 
   return (
     <div id="generated-assets-section" className="mb-12 animate-[fadeIn_0.5s_ease]">
-      <h3 className="text-[1.8rem] font-extrabold text-primary mb-8">Generated Knowledge Assets</h3>
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+        <h3 className="text-[1.55rem] font-extrabold text-primary md:text-[1.8rem]">Generated Knowledge Assets</h3>
+        <span className="rounded-full border border-primary/35 bg-primary/10 px-3 py-1 text-[0.67rem] font-bold uppercase tracking-[0.12em] text-primary">
+          Latest first
+        </span>
+      </div>
       <div>
         {assets.map((asset, index) => (
           <div
             key={`${asset.type}-${asset.timestamp}-${index}`}
-            className="bg-card/50 border-2 border-primary rounded-2xl p-8 mb-6 transition-all hover:shadow-elegant hover:-translate-y-0.5 animate-[slideIn_0.5s_ease]"
+            className="mb-5 animate-[slideIn_0.5s_ease] rounded-2xl border border-primary/35 bg-card/55 p-6 transition-all hover:-translate-y-0.5 hover:shadow-elegant"
           >
-            <div className="flex items-start gap-6 mb-6">
-              <div className="text-5xl flex-shrink-0">{asset.icon}</div>
+            <div className="mb-5 flex items-start gap-5">
+              <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-3xl">{asset.icon}</div>
               <div className="flex-1">
-                <h4 className="text-[1.5rem] font-bold text-foreground mb-2">{asset.title}</h4>
-                <p className="text-muted-foreground text-[0.85rem] font-mono">Generated: {asset.timestamp}</p>
+                <h4 className="mb-1 text-[1.25rem] font-bold text-foreground md:text-[1.4rem]">{asset.title}</h4>
+                <p className="font-mono text-[0.78rem] text-muted-foreground">Generated: {asset.timestamp}</p>
               </div>
             </div>
-            <div className="flex gap-4 flex-wrap">
+
+            <div className="flex flex-wrap gap-3">
               <button
+                type="button"
                 onClick={() => viewAsset(asset)}
-                className="bg-primary text-primary-foreground px-8 py-3 rounded-lg text-[0.95rem] font-semibold cursor-pointer transition-all border-none hover:bg-primary-glow hover:shadow-elegant"
+                className="rounded-lg bg-primary px-6 py-2.5 text-[0.82rem] font-semibold uppercase tracking-[0.1em] text-primary-foreground transition-all hover:bg-primary-glow hover:shadow-elegant"
               >
                 View
               </button>
               <button
+                type="button"
                 onClick={() => chatAsset(asset.type)}
-                className="bg-transparent border-2 border-primary text-primary px-8 py-3 rounded-lg text-[0.95rem] font-semibold cursor-pointer transition-all hover:bg-primary/10"
+                className="rounded-lg border border-primary px-6 py-2.5 text-[0.82rem] font-semibold uppercase tracking-[0.1em] text-primary transition-all hover:bg-primary/10"
               >
                 Chat
               </button>
               <button
+                type="button"
                 onClick={() => exportAsset(asset.type)}
-                className="bg-transparent border-2 border-primary/50 text-primary px-4 py-3 rounded-lg text-xl cursor-pointer transition-all flex items-center justify-center w-[45px] h-[45px] hover:border-primary hover:bg-primary/10"
+                className="flex h-[40px] w-[40px] items-center justify-center rounded-lg border border-primary/50 bg-transparent text-lg text-primary transition-all hover:border-primary hover:bg-primary/10"
               >
                 ↓
               </button>

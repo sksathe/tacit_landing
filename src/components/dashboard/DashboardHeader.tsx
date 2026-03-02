@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
+import { ChevronDown, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 
@@ -31,10 +31,10 @@ export function DashboardHeader() {
   const userInitial = user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U";
 
   return (
-    <header className="bg-background/95 backdrop-blur-[10px] border-b border-primary/20 px-8 py-6 sticky top-0 z-[1000]">
-      <nav className="max-w-[1600px] mx-auto flex justify-between items-center">
-        <div className="flex items-center gap-2 text-[1.8rem] font-extrabold text-primary">
-          <span className="w-8 h-8 flex items-center justify-center text-primary">
+    <header className="sticky top-0 z-[1000] border-b border-primary/20 bg-background/90 px-3 py-2.5 backdrop-blur-md sm:px-6">
+      <nav className="mx-auto flex max-w-[1700px] items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-primary">
+          <span className="flex h-7 w-7 items-center justify-center text-primary">
             <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full" style={{ fill: 'currentColor', stroke: 'currentColor' }}>
               <circle cx="12" cy="10" r="2.5"/>
               <circle cx="8" cy="20" r="2.5"/>
@@ -55,25 +55,37 @@ export function DashboardHeader() {
               <path d="M 32 20 Q 30 25 28 30" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
             </svg>
           </span>
-          <span>Tacit Studio</span>
+          <div className="flex flex-col leading-none">
+            <span className="text-lg font-extrabold tracking-tight sm:text-xl">Tacit Studio</span>
+            <span className="text-[0.6rem] font-semibold uppercase tracking-[0.12em] text-primary/70">Knowledge Workspace</span>
+          </div>
         </div>
-        <div className="flex items-center gap-6">
-          <span className="text-muted-foreground text-[0.95rem]">
+
+        <div className="flex items-center gap-3 sm:gap-5">
+          <span className="hidden text-sm text-muted-foreground md:inline">
             Welcome back{user?.name ? `, ${user.name}` : ""}!
           </span>
+
           <div className="relative user-avatar-container">
-            <div
+            <button
+              type="button"
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-              className="w-[45px] h-[45px] rounded-full bg-gradient-primary flex items-center justify-center font-bold text-[1.1rem] text-primary-foreground cursor-pointer transition-all hover:scale-105 hover:shadow-glow"
+              className="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 p-0.5 pr-1.5 transition-all hover:border-primary hover:bg-primary/15"
             >
-              {userInitial}
-            </div>
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-primary text-sm font-bold text-primary-foreground">
+                {userInitial}
+              </span>
+              <ChevronDown className={`h-3.5 w-3.5 text-primary transition-transform ${isDropdownOpen ? "rotate-180" : ""}`} />
+            </button>
+
             {isDropdownOpen && (
-              <div className="absolute top-[55px] right-0 bg-card/95 border border-primary/30 rounded-lg py-2 min-w-[150px] z-[1000] backdrop-blur-[10px]">
+              <div className="absolute right-0 top-[2.6rem] z-[1000] min-w-[150px] overflow-hidden rounded-lg border border-primary/30 bg-card/95 py-1 shadow-elegant backdrop-blur-md">
                 <button
+                  type="button"
                   onClick={handleLogout}
-                  className="w-full px-6 py-3 text-foreground text-[0.9rem] cursor-pointer transition-all hover:bg-primary/10 hover:text-primary text-left border-none bg-transparent"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-foreground transition-all hover:bg-primary/10 hover:text-primary"
                 >
+                  <LogOut className="h-3.5 w-3.5" />
                   Logout
                 </button>
               </div>

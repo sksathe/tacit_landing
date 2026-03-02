@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Search } from "lucide-react";
 import type { TacitAgent } from "@/data/agents";
 
 export interface SessionItem {
@@ -24,6 +24,7 @@ export function AutomateSessionsList({ agent, onSelectSession, onSessionsLoaded,
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -107,15 +108,25 @@ export function AutomateSessionsList({ agent, onSelectSession, onSessionsLoaded,
 
     fetchSessions();
     return () => { cancelled = true; };
-  }, [agent]);
+  }, [agent, onSessionsLoaded]);
+
+  const filteredSessions = sessions.filter((session) => {
+    if (!query.trim()) return true;
+    const q = query.toLowerCase();
+    return (
+      session.sessionName.toLowerCase().includes(q) ||
+      session.agentName.toLowerCase().includes(q) ||
+      session.meetingTitle?.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <>
-      <div className="flex items-center gap-2 mb-8 text-[0.9rem] text-muted-foreground">
+      <div className="mb-8 flex flex-wrap items-center gap-2 text-[0.88rem] text-muted-foreground">
         <button
           type="button"
           onClick={onBack}
-          className="text-muted-foreground no-underline transition-colors hover:text-primary flex items-center gap-1"
+          className="flex items-center gap-1 transition-colors hover:text-primary"
         >
           <ChevronLeft className="w-4 h-4" />
           Agents
@@ -124,54 +135,74 @@ export function AutomateSessionsList({ agent, onSelectSession, onSessionsLoaded,
         <span className="text-primary font-semibold">{agent.name}</span>
       </div>
 
-      <div className="text-center mb-10">
-        <h1 className="text-[2rem] font-extrabold mb-2 text-foreground">Sessions for {agent.name}</h1>
-        <p className="text-muted-foreground text-[1rem]">
+      <div className="mb-10 rounded-2xl border border-primary/25 bg-card/55 p-8 md:p-10">
+        <div className="mb-3 inline-flex rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-[0.68rem] font-bold uppercase tracking-[0.13em] text-primary">
+          Step 2 of 3
+        </div>
+        <h1 className="mb-2 text-[2rem] font-extrabold text-foreground md:text-[2.4rem]">Sessions for {agent.name}</h1>
+        <p className="mb-6 text-[1rem] leading-relaxed text-muted-foreground">
           Choose the session to automate. Call details and transcripts are available when you open a session.
         </p>
+
+        <div className="relative max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search sessions"
+            className="h-11 w-full rounded-lg border border-primary/30 bg-background/70 pl-10 pr-3 text-sm text-foreground outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+          />
+        </div>
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-muted-foreground">Loading sessions…</div>
+        <div className="py-12 text-center text-muted-foreground">Loading sessions…</div>
       ) : (
-        <div className="max-w-[700px] mx-auto space-y-2">
+        <>
           {error && (
-            <p className="text-sm text-amber-600 dark:text-amber-400 mb-4">
+            <p className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-600 dark:text-amber-400">
               Could not load from server: {error}. Showing sample sessions.
             </p>
           )}
-          {sessions.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No sessions yet for this agent.</p>
+          {filteredSessions.length === 0 ? (
+            <p className="rounded-xl border border-primary/20 bg-card/40 py-10 text-center text-muted-foreground">
+              {sessions.length === 0 ? "No sessions yet for this agent." : "No sessions match your search."}
+            </p>
           ) : (
-            sessions.map((session) => (
-              <button
-                key={session.sessionId}
-                type="button"
-                onClick={() => onSelectSession(session)}
-                className="w-full flex items-center justify-between gap-4 bg-card/50 border-2 border-primary/30 rounded-xl px-6 py-4 text-left transition-all hover:border-primary hover:shadow-elegant"
-              >
-                <div>
-                  <div className="font-semibold text-foreground">{session.sessionName}</div>
-                  {(session.startedAt || session.duration) && (
-                    <div className="text-[0.85rem] text-muted-foreground mt-0.5">
-                      {session.startedAt
-                        ? new Date(session.startedAt).toLocaleDateString(undefined, {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })
-                        : null}
-                      {session.duration ? ` · ${session.duration}` : null}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredSessions.map((session) => (
+                <button
+                  key={session.sessionId}
+                  type="button"
+                  onClick={() => onSelectSession(session)}
+                  className="flex flex-col rounded-2xl border border-primary/25 bg-card/55 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-primary hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                >
+                  <div className="mb-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-lg">
+                    📄
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-foreground leading-tight line-clamp-2">
+                      {session.sessionName}
                     </div>
-                  )}
-                </div>
-                <span className="text-primary text-[0.9rem] font-medium">Open →</span>
-              </button>
-            ))
+                    {(session.startedAt || session.duration) && (
+                      <div className="mt-1.5 text-[0.8rem] text-muted-foreground">
+                        {session.startedAt
+                          ? new Date(session.startedAt).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })
+                          : null}
+                        {session.duration ? ` · ${session.duration}` : null}
+                      </div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
           )}
-        </div>
+        </>
       )}
     </>
   );

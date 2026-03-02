@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Menu } from "lucide-react";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { SessionsSidebar } from "@/components/dashboard/SessionsSidebar";
 import { DashboardView } from "@/components/dashboard/DashboardView";
@@ -95,19 +96,24 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="relative isolate min-h-screen overflow-x-hidden bg-background text-foreground">
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute left-[-12rem] top-[-10rem] h-[28rem] w-[28rem] rounded-full bg-primary/8 blur-3xl" />
+        <div className="absolute right-[-10rem] top-[8rem] h-[24rem] w-[24rem] rounded-full bg-primary/6 blur-3xl" />
+        <div className="absolute bottom-[-14rem] left-1/2 h-[30rem] w-[40rem] -translate-x-1/2 rounded-full bg-primary/5 blur-3xl" />
+      </div>
       <DashboardHeader />
       
-      {/* Hamburger Menu Button */}
+      {/* Sidebar toggle */}
       <button
+        type="button"
+        aria-label="Open menu"
         onClick={toggleSidebar}
-        className={`fixed top-6 left-6 w-[50px] h-[50px] flex flex-col justify-center items-center gap-1.5 p-2.5 rounded-xl transition-all z-[1001] ${
-          isSidebarOpen ? "opacity-0 pointer-events-none" : ""
-        } bg-primary/15 border-2 border-primary/30 hover:bg-primary/25 hover:border-primary hover:shadow-glow`}
+        className={`fixed left-4 top-4 z-[1001] flex h-9 w-9 items-center justify-center rounded-lg border border-primary/25 bg-background/90 text-primary shadow-sm backdrop-blur-sm transition-all hover:border-primary hover:bg-primary/10 hover:shadow ${
+          isSidebarOpen ? "pointer-events-none opacity-0" : ""
+        }`}
       >
-        <span className="w-6 h-0.5 bg-primary rounded-sm transition-all" />
-        <span className="w-6 h-0.5 bg-primary rounded-sm transition-all" />
-        <span className="w-6 h-0.5 bg-primary rounded-sm transition-all" />
+        <Menu className="h-5 w-5" strokeWidth={2} />
       </button>
 
       {/* Sidebar */}
@@ -126,7 +132,7 @@ const Dashboard = () => {
       )}
 
       {/* Main Content */}
-      <div className="max-w-[1600px] mx-auto px-8 py-16">
+      <main className="mx-auto max-w-[1700px] px-5 pb-20 pt-10 sm:px-8 sm:pt-14 lg:px-10">
         {currentView === "dashboard" && (
           <DashboardView
             onStartSession={() => setMeetingTypeFlow("start")}
@@ -159,7 +165,7 @@ const Dashboard = () => {
             onOpenConfigDrawer={openConfigDrawer}
           />
         )}
-      </div>
+      </main>
 
       {/* Meeting type chooser + modals */}
       <ChooseMeetingTypeModal

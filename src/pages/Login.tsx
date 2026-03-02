@@ -56,22 +56,22 @@ const Login = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <div className="flex items-center justify-center px-4 py-16">
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">
+      <div className="flex items-center justify-center px-4 py-16 lg:py-24">
+        <Card className="w-full max-w-md rounded-2xl border-border/60 bg-card/85 shadow-elegant backdrop-blur-sm">
+          <CardHeader className="space-y-2 pb-4">
+            <CardTitle className="text-center text-3xl font-bold tracking-tight">
               {isSignUp ? "Create Account" : "Welcome Back"}
             </CardTitle>
-            <CardDescription className="text-center">
+            <CardDescription className="text-center text-sm leading-relaxed">
               {isSignUp
                 ? "Sign up to start capturing knowledge"
                 : "Sign in to your Tacit account"}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-5">
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+              <div className="space-y-2.5">
+                <Label htmlFor="email" className="text-sm font-semibold">Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -80,10 +80,11 @@ const Login = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   disabled={isLoading}
+                  className="h-11 rounded-lg"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+              <div className="space-y-2.5">
+                <Label htmlFor="password" className="text-sm font-semibold">Password</Label>
                 <Input
                   id="password"
                   type="password"
@@ -92,21 +93,22 @@ const Login = () => {
                   required
                   disabled={isLoading}
                   minLength={6}
+                  className="h-11 rounded-lg"
                 />
               </div>
               <Button
                 type="submit"
-                className="w-full"
+                className="h-11 w-full rounded-lg bg-gradient-primary font-semibold"
                 disabled={isLoading}
               >
                 {isLoading ? "Please wait..." : isSignUp ? "Sign Up" : "Sign In"}
               </Button>
             </form>
-            <div className="mt-4 text-center text-sm">
+            <div className="border-t border-border/60 pt-4 text-center text-sm">
               <button
                 type="button"
                 onClick={() => setIsSignUp(!isSignUp)}
-                className="text-primary hover:underline"
+                className="font-semibold text-primary transition-smooth hover:text-primary-glow"
               >
                 {isSignUp
                   ? "Already have an account? Sign in"

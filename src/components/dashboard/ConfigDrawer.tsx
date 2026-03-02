@@ -170,31 +170,36 @@ export function ConfigDrawer({ open, onClose, automation }: ConfigDrawerProps) {
 
       {/* Drawer */}
       <div
-        className={`fixed top-0 right-0 w-[450px] h-screen bg-background/98 border-l-[3px] border-primary-dashboard z-[1002] transition-transform duration-300 overflow-y-auto shadow-lg ${
+        className={`fixed right-0 top-0 z-[1002] h-screen w-[450px] overflow-y-auto border-l border-primary/35 bg-background/96 shadow-2xl backdrop-blur-md transition-transform duration-300 ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="sticky top-0 bg-background/95 px-8 py-8 border-b border-primary-dashboard/30 z-10">
-          <h3 className="text-[1.5rem] font-extrabold text-primary-dashboard mb-2">
+        <div className="sticky top-0 z-10 border-b border-primary/25 bg-background/95 px-6 py-6">
+          <p className="mb-2 inline-flex rounded-full border border-primary/30 bg-primary/10 px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-[0.11em] text-primary">
+            Automation Config
+          </p>
+          <h3 className="mb-1 text-[1.45rem] font-extrabold text-primary">
             Configure {automation.title}
           </h3>
+          <p className="text-sm text-muted-foreground">Tune output and run this automation on the selected recording.</p>
           <button
+            type="button"
             onClick={onClose}
-            className="absolute top-6 right-6 bg-transparent border-none text-muted-foreground text-[1.8rem] cursor-pointer transition-colors leading-none hover:text-primary-dashboard"
+            className="absolute right-5 top-5 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
           >
-            ×
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="px-8 py-8">
+        <div className="space-y-5 px-6 py-6">
           <div className="mb-6">
-            <label className="block text-[0.9rem] font-bold text-primary-dashboard/90 uppercase tracking-wide mb-3">
+            <label className="mb-2 block text-[0.72rem] font-bold uppercase tracking-[0.1em] text-primary/85">
               Output Tone
             </label>
             <select
               value={config.outputTone}
               onChange={(e) => setConfig({ ...config, outputTone: e.target.value })}
-              className="w-full bg-input border-2 border-primary-dashboard/30 rounded-lg px-4 py-3 text-foreground text-base transition-all focus:outline-none focus:border-primary-dashboard focus:ring-2 focus:ring-primary-dashboard/20 cursor-pointer"
+              className="h-11 w-full cursor-pointer rounded-lg border border-primary/30 bg-input px-4 text-sm text-foreground outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
             >
               <option value="professional">Professional</option>
               <option value="casual">Casual</option>
@@ -205,7 +210,7 @@ export function ConfigDrawer({ open, onClose, automation }: ConfigDrawerProps) {
           </div>
 
           <div className="mb-6">
-            <label className="block text-[0.9rem] font-bold text-primary-dashboard/90 uppercase tracking-wide mb-3">
+            <label className="mb-2 block text-[0.72rem] font-bold uppercase tracking-[0.1em] text-primary/85">
               Target Audience
             </label>
             <input
@@ -213,12 +218,12 @@ export function ConfigDrawer({ open, onClose, automation }: ConfigDrawerProps) {
               value={config.targetAudience}
               onChange={(e) => setConfig({ ...config, targetAudience: e.target.value })}
               placeholder="e.g., Executives, Engineers, General Staff"
-              className="w-full bg-input border-2 border-primary-dashboard/30 rounded-lg px-4 py-3 text-foreground text-base transition-all focus:outline-none focus:border-primary-dashboard focus:ring-2 focus:ring-primary-dashboard/20"
+              className="h-11 w-full rounded-lg border border-primary/30 bg-input px-4 text-sm text-foreground outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
           </div>
 
           <div className="mb-6">
-            <label className="block text-[0.9rem] font-bold text-primary-dashboard/90 uppercase tracking-wide mb-3">
+            <label className="mb-2 block text-[0.72rem] font-bold uppercase tracking-[0.1em] text-primary/85">
               Additional Instructions
             </label>
             <textarea
@@ -226,20 +231,21 @@ export function ConfigDrawer({ open, onClose, automation }: ConfigDrawerProps) {
               onChange={(e) => setConfig({ ...config, additionalInstructions: e.target.value })}
               placeholder="Any specific requirements or focus areas for this automation..."
               rows={5}
-              className="w-full bg-input border-2 border-primary-dashboard/30 rounded-lg px-4 py-3 text-foreground text-base transition-all focus:outline-none focus:border-primary-dashboard focus:ring-2 focus:ring-primary-dashboard/20 resize-none min-h-[120px]"
+              className="min-h-[120px] w-full resize-none rounded-lg border border-primary/30 bg-input px-4 py-3 text-sm text-foreground outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
           </div>
         </div>
 
-        <div className="sticky bottom-0 bg-background/95 px-8 py-8 border-t border-primary-dashboard/30">
+        <div className="sticky bottom-0 border-t border-primary/25 bg-background/95 px-6 py-5">
           <button
+            type="button"
             onClick={handleRunAutomation}
             disabled={isProcessing}
-            className="w-full bg-primary text-primary-foreground px-5 py-5 rounded-xl text-[1.1rem] font-bold cursor-pointer transition-all border-none shadow-elegant hover:bg-primary-glow hover:shadow-glow hover:-translate-y-0.5 uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+            className="w-full rounded-xl bg-primary px-5 py-3.5 text-[0.82rem] font-bold uppercase tracking-[0.12em] text-primary-foreground shadow-elegant transition-all hover:-translate-y-0.5 hover:bg-primary-glow hover:shadow-glow disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
           >
             {isProcessing ? (
               <span className="flex items-center justify-center gap-2">
-                <span className="w-4 h-4 border-2 border-primary-dashboard/30 border-t-primary-dashboard rounded-full animate-spin" />
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground" />
                 <span>Processing...</span>
               </span>
             ) : (

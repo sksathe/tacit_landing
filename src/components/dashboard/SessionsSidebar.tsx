@@ -50,19 +50,19 @@ export function SessionsSidebar({ isOpen, onClose, onSessionClick }: SessionsSid
 
   return (
     <div
-      className={`fixed left-0 top-0 w-[280px] h-screen bg-background/98 border-r border-primary/30 transform transition-transform duration-300 z-[999] pt-20 pb-8 overflow-y-auto backdrop-blur-[10px] ${
+      className={`fixed left-0 top-0 z-[999] h-screen w-[300px] transform overflow-y-auto border-r border-primary/25 bg-background/96 pb-8 pt-20 backdrop-blur-md transition-transform duration-300 ${
         isOpen ? "translate-x-0" : "-translate-x-full"
       }`}
     >
       <button
         onClick={onClose}
-        className="absolute top-6 right-6 w-[50px] h-[50px] rounded-xl bg-primary/15 border-2 border-primary/30 text-primary text-[1.8rem] font-normal flex items-center justify-center cursor-pointer transition-all hover:bg-primary/25 hover:border-primary hover:shadow-glow z-[1000] leading-none"
+        className="absolute right-5 top-5 z-[1000] flex h-[44px] w-[44px] cursor-pointer items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-primary transition-all hover:border-primary hover:bg-primary/20 hover:shadow-glow"
       >
         <X className="w-6 h-6 stroke-primary stroke-[2]" />
       </button>
 
       <div className="mb-8">
-        <div className="text-[0.75rem] font-bold text-primary-dashboard/60 uppercase tracking-[1.5px] px-6 mb-4">
+        <div className="mb-4 px-6 text-[0.68rem] font-bold uppercase tracking-[0.14em] text-primary/70">
           Past Sessions
         </div>
 
@@ -73,10 +73,10 @@ export function SessionsSidebar({ isOpen, onClose, onSessionClick }: SessionsSid
             <div key={agent.id} className="mb-2">
               <div
                 onClick={() => toggleGroup(agent.id)}
-                className={`flex items-center gap-3 px-6 py-3.5 text-foreground cursor-pointer transition-all border-l-[3px] ${
+                className={`flex cursor-pointer items-center gap-3 border-l-[3px] px-6 py-3.5 text-foreground transition-all ${
                   expanded
-                    ? "bg-primary/10 text-primary border-l-primary/50"
-                    : "border-l-transparent hover:bg-primary/8 hover:border-l-primary/50"
+                    ? "border-l-primary/50 bg-primary/10 text-primary"
+                    : "border-l-transparent hover:border-l-primary/50 hover:bg-primary/8"
                 }`}
               >
                 <AgentAvatar agent={agent} size="sm" />
@@ -102,17 +102,17 @@ export function SessionsSidebar({ isOpen, onClose, onSessionClick }: SessionsSid
       </div>
 
       <div className="mb-8">
-        <div className="text-[0.75rem] font-bold text-primary-dashboard/60 uppercase tracking-[1.5px] px-6 mb-4">
+        <div className="mb-4 px-6 text-[0.68rem] font-bold uppercase tracking-[0.14em] text-primary/70">
           Automations
         </div>
 
         <div className="mb-2">
           <div
             onClick={() => toggleGroup("allAutomations")}
-            className={`flex items-center gap-3 px-6 py-3.5 text-white cursor-pointer transition-all border-l-[3px] ${
+            className={`flex cursor-pointer items-center gap-3 border-l-[3px] px-6 py-3.5 transition-all ${
               expandedGroups.allAutomations
-                ? "bg-primary-dashboard/10 text-primary-dashboard border-l-primary-dashboard/50"
-                : "border-l-transparent hover:bg-primary-dashboard/10 hover:border-l-primary-dashboard/50"
+                ? "border-l-primary/50 bg-primary/10 text-primary"
+                : "border-l-transparent text-foreground hover:border-l-primary/50 hover:bg-primary/10"
             }`}
           >
             <span className="text-[1.2rem] w-6 flex items-center justify-center">⚡</span>
@@ -137,10 +137,10 @@ export function SessionsSidebar({ isOpen, onClose, onSessionClick }: SessionsSid
         <div className="mb-2">
           <div
             onClick={() => toggleGroup("drafts")}
-            className={`flex items-center gap-3 px-6 py-3.5 text-white cursor-pointer transition-all border-l-[3px] ${
+            className={`flex cursor-pointer items-center gap-3 border-l-[3px] px-6 py-3.5 transition-all ${
               expandedGroups.drafts
-                ? "bg-primary-dashboard/10 text-primary-dashboard border-l-primary-dashboard/50"
-                : "border-l-transparent hover:bg-primary-dashboard/10 hover:border-l-primary-dashboard/50"
+                ? "border-l-primary/50 bg-primary/10 text-primary"
+                : "border-l-transparent text-foreground hover:border-l-primary/50 hover:bg-primary/10"
             }`}
           >
             <span className="text-[1.2rem] w-6 flex items-center justify-center">📝</span>

@@ -251,13 +251,15 @@ export function SessionDetailView({
     setProgress(percentage);
   };
 
+  const transcriptAvailable = hasTranscript(sessionDetails);
+
   return (
     <>
-      <div className="flex items-center gap-2 mb-8 text-[0.9rem] text-muted-foreground flex-wrap">
+      <div className="mb-5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <button
           type="button"
           onClick={onBack}
-          className="text-muted-foreground no-underline transition-colors hover:text-primary bg-transparent border-none cursor-pointer p-0"
+          className="cursor-pointer border-none bg-transparent p-0 transition-colors hover:text-primary"
         >
           Home
         </button>
@@ -267,7 +269,7 @@ export function SessionDetailView({
             <button
               type="button"
               onClick={onBackToSessions}
-              className="text-muted-foreground no-underline transition-colors hover:text-primary bg-transparent border-none cursor-pointer p-0"
+              className="cursor-pointer border-none bg-transparent p-0 transition-colors hover:text-primary"
             >
               Sessions
             </button>
@@ -279,29 +281,54 @@ export function SessionDetailView({
         <span className="text-primary font-semibold">{session.agentName}</span>
       </div>
 
-      {sessions.length > 0 && onSessionChange && (
-        <div className="mb-6">
-          <label htmlFor="session-select" className="block text-[0.85rem] font-bold text-primary/80 uppercase tracking-wide mb-2">
-            Choose the session to automate
-          </label>
-          <select
-            id="session-select"
-            value={session.sessionId}
-            onChange={(e) => {
-              const s = sessions.find((s) => s.sessionId === e.target.value);
-              if (s) onSessionChange(s);
-            }}
-            className="w-full max-w-md bg-card border-2 border-primary/30 rounded-xl px-4 py-3 text-foreground text-[0.95rem] focus:outline-none focus:border-primary"
-          >
-            {sessions.map((s) => (
-              <option key={s.sessionId} value={s.sessionId}>
-                {s.sessionName}
-                {s.startedAt ? ` · ${new Date(s.startedAt).toLocaleDateString()}` : ""}
-              </option>
-            ))}
-          </select>
+      <section className="mb-4 rounded-xl border border-primary/25 bg-card/55 p-4">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <div className="mb-1.5 inline-flex rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.11em] text-primary">
+              Step 3 of 3
+            </div>
+            <h1 className="text-xl font-extrabold tracking-tight text-foreground sm:text-[1.35rem]">Automation Workspace</h1>
+            <p className="mt-0.5 text-xs text-muted-foreground">Review the recording on the left and run automations from the studio panel on the right.</p>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <span className="rounded-full border border-primary/35 bg-primary/10 px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-[0.1em] text-primary">{session.agentName}</span>
+            <span
+              className={`rounded-full border px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-[0.1em] ${
+                transcriptAvailable
+                  ? "border-primary/35 bg-primary/10 text-primary"
+                  : "border-amber-500/35 bg-amber-500/10 text-amber-500"
+              }`}
+            >
+              {transcriptAvailable ? "Transcript Ready" : "Transcript Missing"}
+            </span>
+          </div>
         </div>
-      )}
+
+        {sessions.length > 0 && onSessionChange && (
+          <div className="max-w-[26rem]">
+            <label htmlFor="session-select" className="mb-1.5 block text-[0.65rem] font-bold uppercase tracking-[0.1em] text-primary/80">
+              Choose the session to automate
+            </label>
+            <select
+              id="session-select"
+              value={session.sessionId}
+              onChange={(e) => {
+                const s = sessions.find((s) => s.sessionId === e.target.value);
+                if (s) onSessionChange(s);
+              }}
+              className="h-9 w-full rounded-lg border border-primary/30 bg-background/70 px-3 text-sm text-foreground outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+            >
+              {sessions.map((s) => (
+                <option key={s.sessionId} value={s.sessionId}>
+                  {s.sessionName}
+                  {s.startedAt ? ` · ${new Date(s.startedAt).toLocaleDateString()}` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </section>
 
       {detailsError && (
         <div className="mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm">
@@ -309,92 +336,109 @@ export function SessionDetailView({
         </div>
       )}
 
-      <div className="bg-card/50 border-2 border-primary/30 rounded-[20px] p-12 mb-12">
-        {detailsLoading ? (
-          <div className="py-12 text-center text-muted-foreground">Loading session details…</div>
-        ) : (
-          <>
-            <div className="flex justify-between items-start mb-8 pb-8 border-b border-primary/20">
-              <div>
-                <h2 className="text-[2rem] font-extrabold text-foreground mb-2">
-                  {sessionDetails?.meeting?.title ?? session.sessionName}
-                </h2>
-                <p className="text-muted-foreground text-[0.9rem] font-mono">Session ID: {session.sessionId}</p>
+      <div className="mb-8 grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.95fr)]">
+        <div className="rounded-xl border border-primary/30 bg-card/55 p-4 md:p-5">
+          {detailsLoading ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">Loading session details…</div>
+          ) : (
+            <>
+              <div className="mb-4 flex items-start justify-between border-b border-primary/20 pb-4">
+                <div>
+                  <h2 className="mb-1 text-lg font-extrabold text-foreground sm:text-[1.25rem]">
+                    {sessionDetails?.meeting?.title ?? session.sessionName}
+                  </h2>
+                  <p className="font-mono text-xs text-muted-foreground">Session ID: {session.sessionId}</p>
+                </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-8 mb-10">
-              <div className="flex flex-col gap-2">
-                <div className="text-[0.85rem] font-bold text-primary/80 uppercase tracking-wide">
-                  Agent Name
+              <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
+                <div className="rounded-lg border border-primary/20 bg-background/45 p-3">
+                  <div className="text-[0.6rem] font-bold uppercase tracking-[0.1em] text-primary/80">
+                    Agent Name
+                  </div>
+                  <div className="mt-0.5 text-sm font-medium text-foreground">
+                    {sessionDetails?.meeting?.agent_name ?? session.agentName ?? "—"}
+                  </div>
                 </div>
-                <div className="text-[1.1rem] text-foreground font-medium">
-                  {sessionDetails?.meeting?.agent_name ?? session.agentName ?? "—"}
+                <div className="rounded-lg border border-primary/20 bg-background/45 p-3">
+                  <div className="text-[0.6rem] font-bold uppercase tracking-[0.1em] text-primary/80">
+                    Topic
+                  </div>
+                  <div className="mt-0.5 text-sm font-medium text-foreground">
+                    {sessionDetails?.meeting?.agenda?.trim() || "No agenda provided"}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-primary/20 bg-background/45 p-3">
+                  <div className="text-[0.6rem] font-bold uppercase tracking-[0.1em] text-primary/80">
+                    Invited Parties
+                  </div>
+                  <div className="mt-0.5 text-sm font-medium text-foreground">
+                    {sessionDetails?.meeting?.meeting_invitees?.length
+                      ? sessionDetails.meeting.meeting_invitees.map((i) => i.email).filter(Boolean).join(", ")
+                      : "—"}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-primary/20 bg-background/45 p-3">
+                  <div className="text-[0.6rem] font-bold uppercase tracking-[0.1em] text-primary/80">
+                    Date & Time
+                  </div>
+                  <div className="mt-0.5 text-sm font-medium text-foreground">
+                    {formatDateTime(sessionDetails?.meeting?.scheduled_start_at)}
+                  </div>
+                </div>
+                <div className="rounded-lg border border-primary/20 bg-background/45 p-3">
+                  <div className="text-[0.6rem] font-bold uppercase tracking-[0.1em] text-primary/80">
+                    Duration
+                  </div>
+                  <div className="mt-0.5 text-sm font-medium text-foreground">
+                    {formatDuration(sessionDetails?.duration_sec ?? undefined)}
+                  </div>
                 </div>
               </div>
-              <div className="flex flex-col gap-2">
-                <div className="text-[0.85rem] font-bold text-primary/80 uppercase tracking-wide">
-                  Topic
-                </div>
-                <div className="text-[1.1rem] text-foreground font-medium">
-                  {sessionDetails?.meeting?.agenda?.trim() || "No agenda provided"}
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <div className="text-[0.85rem] font-bold text-primary/80 uppercase tracking-wide">
-                  Invited Parties
-                </div>
-                <div className="text-[1.1rem] text-foreground font-medium">
-                  {sessionDetails?.meeting?.meeting_invitees?.length
-                    ? sessionDetails.meeting.meeting_invitees.map((i) => i.email).filter(Boolean).join(", ")
-                    : "—"}
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <div className="text-[0.85rem] font-bold text-primary/80 uppercase tracking-wide">
-                  Date & Time
-                </div>
-                <div className="text-[1.1rem] text-foreground font-medium">
-                  {formatDateTime(sessionDetails?.meeting?.scheduled_start_at)}
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <div className="text-[0.85rem] font-bold text-primary/80 uppercase tracking-wide">
-                  Duration
-                </div>
-                <div className="text-[1.1rem] text-foreground font-medium">
-                  {formatDuration(sessionDetails?.duration_sec ?? undefined)}
-                </div>
-              </div>
-            </div>
 
-            <div className="bg-black/30 rounded-2xl p-10 text-center">
-              <button
-                onClick={togglePlayPause}
-                className="w-[120px] h-[120px] rounded-full bg-gradient-primary border-none text-primary-foreground text-5xl cursor-pointer mx-auto mb-6 flex items-center justify-center transition-all shadow-elegant hover:scale-105 hover:shadow-glow"
-              >
-                {isPlaying ? "⏸" : "▶"}
-              </button>
-              <div className="flex items-center gap-6 max-w-[600px] mx-auto">
-                <span className="text-muted-foreground text-[0.9rem] font-mono">0:00</span>
-                <div
-                  onClick={handleSeek}
-                  className="flex-1 h-2 bg-primary/20 rounded cursor-pointer overflow-hidden"
+              <div className="rounded-xl border border-primary/20 bg-black/35 p-4 text-center md:p-5">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <span className="text-[0.65rem] font-bold uppercase tracking-[0.1em] text-primary/80">Playback</span>
+                  <span className="text-[0.65rem] font-medium uppercase tracking-[0.1em] text-muted-foreground">Notebook mode</span>
+                </div>
+                <button
+                  onClick={togglePlayPause}
+                  className="mx-auto mb-4 flex h-16 w-16 cursor-pointer items-center justify-center rounded-full border border-primary/25 bg-gradient-primary text-2xl text-primary-foreground shadow-elegant transition-all hover:scale-105 hover:shadow-glow"
                 >
+                  {isPlaying ? "⏸" : "▶"}
+                </button>
+                <div className="mx-auto flex max-w-[520px] items-center gap-3">
+                  <span className="font-mono text-xs text-muted-foreground">0:00</span>
                   <div
-                    className="h-full bg-primary transition-all duration-300"
-                    style={{ width: `${progress}%` }}
-                  />
+                    onClick={handleSeek}
+                    className="h-2 flex-1 cursor-pointer overflow-hidden rounded-full bg-primary/20"
+                  >
+                    <div
+                      className="h-full bg-primary transition-all duration-300"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {sessionDetails?.duration_sec != null
+                      ? `${Math.floor(sessionDetails.duration_sec / 60)}:${String(sessionDetails.duration_sec % 60).padStart(2, "0")}`
+                      : "—"}
+                  </span>
                 </div>
-                <span className="text-muted-foreground text-[0.9rem] font-mono">
-                  {sessionDetails?.duration_sec != null
-                    ? `${Math.floor(sessionDetails.duration_sec / 60)}:${String(sessionDetails.duration_sec % 60).padStart(2, "0")}`
-                    : "—"}
-                </span>
               </div>
-            </div>
-          </>
-        )}
+            </>
+          )}
+        </div>
+
+        <div className="self-start xl:sticky xl:top-24 xl:max-h-[calc(100vh-7.2rem)] xl:overflow-y-auto xl:pr-1">
+          <AutomationOptions
+            onOpenConfigDrawer={onOpenConfigDrawer}
+            onOpenSummaryPanel={() => setIsSummaryPanelOpen(true)}
+            agentName={session.agentName}
+            layout="grid"
+            className="mt-0"
+            title="Automation Studio"
+          />
+        </div>
       </div>
 
       {/* All summaries for this session (latest first), shown when opened from Generate Summary */}
@@ -408,8 +452,8 @@ export function SessionDetailView({
               <button
                 type="button"
                 onClick={() => onOpenConfigDrawer("summary", "Generate Summary", "📄")}
-                disabled={!hasTranscript(sessionDetails)}
-                title={!hasTranscript(sessionDetails) ? "No transcript for this session. Transcripts are saved when the call is finalized with a transcript." : undefined}
+                disabled={!transcriptAvailable}
+                title={!transcriptAvailable ? "No transcript for this session. Transcripts are saved when the call is finalized with a transcript." : undefined}
                 className="bg-primary text-primary-foreground border-2 border-primary px-4 py-2 rounded-[999px] text-[0.85rem] font-semibold cursor-pointer transition-all hover:bg-primary/90 hover:shadow-elegant uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary"
               >
                 Create Summary
@@ -645,11 +689,6 @@ export function SessionDetailView({
         </div>
       )}
 
-      <AutomationOptions
-        onOpenConfigDrawer={onOpenConfigDrawer}
-        onOpenSummaryPanel={() => setIsSummaryPanelOpen(true)}
-        agentName={session.agentName}
-      />
     </>
   );
 }
