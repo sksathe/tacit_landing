@@ -69,7 +69,7 @@ export const supabaseService = createClient(SUPABASE_URL as string, SUPABASE_SER
 // Helper to create authenticated client from JWT
 export function createAuthenticatedClient(jwt: string): SupabaseClient {
   // Create client with JWT in headers - Supabase will use this for RLS
-  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  return createClient(SUPABASE_URL as string, SUPABASE_ANON_KEY as string, {
     global: {
       headers: {
         Authorization: `Bearer ${jwt}`,
