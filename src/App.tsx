@@ -15,6 +15,7 @@ import EmailToMeeting from "./pages/EmailToMeeting";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
 import MeetingTypeComingSoon from "./pages/MeetingTypeComingSoon";
+import RachelAutomation from "./pages/RachelAutomation";
 
 const queryClient = new QueryClient();
 
@@ -58,6 +59,14 @@ const App = () => {
                 element={
                   <ProtectedRoute>
                     <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/dashboard/:agentId/:automationId/:sessionId"
+                element={
+                  <ProtectedRoute>
+                    <RachelAutomation />
                   </ProtectedRoute>
                 }
               />

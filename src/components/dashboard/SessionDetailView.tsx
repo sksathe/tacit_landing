@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { TACIT_AGENTS } from "@/data/agents";
 import { GeneratedAssets } from "./GeneratedAssets";
 import { AutomationOptions } from "./AutomationOptions";
 import type { SessionItem } from "./AutomateSessionsList";
@@ -65,6 +67,12 @@ interface SessionDetailViewProps {
   /** When provided, show a link/button to go back to the sessions list (same agent). */
   onBackToSessions?: () => void;
   onOpenConfigDrawer: (type: string, title: string, icon: string) => void;
+  /** Optional: when set, open a specific automation panel by default (e.g. "summary"). */
+  initialAutomationId?: string;
+  /** When true, hides the internal breadcrumb row (Home | Sessions | ...). */
+  hideBreadcrumb?: boolean;
+  /** When true, show only session bar + results (no Step 3 / workspace grid / Automation Studio). */
+  compactLayout?: boolean;
 }
 
 function formatDateTime(iso: string | undefined): string {
@@ -104,17 +112,40 @@ export function SessionDetailView({
   onBack,
   onBackToSessions,
   onOpenConfigDrawer,
+  initialAutomationId,
+  hideBreadcrumb = false,
+  compactLayout = false,
 }: SessionDetailViewProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isAutomationRoute = /^\/dashboard\/[^/]+\/[^/]+\/[^/]+/.test(location.pathname);
   const [sessionDetails, setSessionDetails] = useState<SessionDetails | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(true);
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [summaries, setSummaries] = useState<SummaryDetails[]>([]);
-  const [isSummaryPanelOpen, setIsSummaryPanelOpen] = useState(false);
+  const [isSummaryPanelOpen, setIsSummaryPanelOpen] = useState(initialAutomationId === "summary");
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(35);
   const [assets, setAssets] = useState<Array<{ type: string; title: string; icon: string; timestamp: string }>>([]);
   const [clarityScore, setClarityScore] = useState<ClarityScore | null>(null);
   const [expandedDimensionId, setExpandedDimensionId] = useState<string | null>(null);
+
+  const navigateToRachelAutomation = (automationId: string) => {
+    // For now, only create dedicated routes for Rachel's automations.
+    if (session.agentName === "Rachel" && !isAutomationRoute) {
+      const agent = TACIT_AGENTS.find((a) => a.name === session.agentName);
+      const agentId = agent?.id ?? session.agentName.toLowerCase();
+
+      navigate(`/dashboard/${agentId}/${automationId}/${session.sessionId}`, {
+        state: {
+          session,
+          sessionsForAgent: sessions,
+        },
+      });
+      return true;
+    }
+    return false;
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -253,45 +284,131 @@ export function SessionDetailView({
 
   const transcriptAvailable = hasTranscript(sessionDetails);
 
+  const handleViewGeneratedAsset = (asset: { type: string }) => {
+    if (asset.type === "summary") {
+      setIsSummaryPanelOpen(true);
+      setTimeout(() => {
+        const el = document.getElementById("session-summaries-panel");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 50);
+    } else if (asset.type === "clarity-scorer") {
+      const el = document.getElementById("clarity-score-panel");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+  };
+
+  const resolveGeneratedAssetContent = (asset: { type: string; title: string; timestamp: string }) => {
+    if (asset.type === "summary" && summaries.length > 0) {
+      const latest = summaries[0];
+      const parts: string[] = [
+        `${asset.title}`,
+        `Generated: ${asset.timestamp}`,
+      ];
+
+      if (latest.summary_text) {
+        parts.push("", "Summary", latest.summary_text);
+      }
+
+      if (latest.key_points && latest.key_points.length > 0) {
+        parts.push("", "Key Points", ...latest.key_points.map((point) => `- ${point}`));
+      }
+
+      if (latest.action_items && latest.action_items.length > 0) {
+        parts.push(
+          "",
+          "Action Items",
+          ...latest.action_items.map((item) => `- ${typeof item === "string" ? item : JSON.stringify(item)}`)
+        );
+      }
+
+      return parts.join("\n");
+    }
+
+    if (asset.type === "clarity-scorer" && clarityScore?.dimensions?.length) {
+      const parts: string[] = [
+        `${asset.title}`,
+        `Generated: ${asset.timestamp}`,
+        "",
+      ];
+
+      if (typeof clarityScore.overallScore === "number") {
+        parts.push(`Overall Score: ${Math.round(clarityScore.overallScore)}/100`);
+      }
+      if (clarityScore.overallLabel) {
+        parts.push(`Overall Label: ${clarityScore.overallLabel}`);
+      }
+
+      parts.push("", "Dimensions");
+      clarityScore.dimensions.forEach((dimension) => {
+        parts.push(`- ${dimension.label}: ${Math.round(dimension.score)}/100`);
+      });
+
+      if (clarityScore.interpretation && clarityScore.interpretation.length > 0) {
+        parts.push("", "Interpretation", ...clarityScore.interpretation.map((item) => `- ${item}`));
+      }
+
+      return parts.join("\n");
+    }
+
+    return null;
+  };
+
   return (
     <>
-      <div className="mb-5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        <button
-          type="button"
-          onClick={onBack}
-          className="cursor-pointer border-none bg-transparent p-0 transition-colors hover:text-primary"
-        >
-          Home
-        </button>
-        {onBackToSessions && (
+      {!hideBreadcrumb && (
+        <div className="mb-5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <button
+            type="button"
+            onClick={onBack}
+            className="cursor-pointer border-none bg-transparent p-0 transition-colors hover:text-primary"
+          >
+            Home
+          </button>
+          {onBackToSessions && (
+            <>
+              <span className="text-primary/40">|</span>
+              <button
+                type="button"
+                onClick={onBackToSessions}
+                className="cursor-pointer border-none bg-transparent p-0 transition-colors hover:text-primary"
+              >
+                Sessions
+              </button>
+            </>
+          )}
+          <span className="text-primary/40">|</span>
+          <span className="text-muted-foreground">Automate Past Session</span>
+          <span className="text-primary/40">|</span>
+          <span className="text-primary font-semibold">{session.agentName}</span>
+        </div>
+      )}
+
+      <section className={compactLayout ? "mb-4 flex flex-wrap items-center gap-4 rounded-lg border border-primary/20 bg-card/40 px-4 py-3" : "mb-4 rounded-xl border border-primary/25 bg-card/55 p-4"}>
+        {compactLayout ? (
           <>
-            <span className="text-primary/40">|</span>
-            <button
-              type="button"
-              onClick={onBackToSessions}
-              className="cursor-pointer border-none bg-transparent p-0 transition-colors hover:text-primary"
-            >
-              Sessions
-            </button>
-          </>
-        )}
-        <span className="text-primary/40">|</span>
-        <span className="text-muted-foreground">Automate Past Session</span>
-        <span className="text-primary/40">|</span>
-        <span className="text-primary font-semibold">{session.agentName}</span>
-      </div>
-
-      <section className="mb-4 rounded-xl border border-primary/25 bg-card/55 p-4">
-        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <div className="mb-1.5 inline-flex rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.11em] text-primary">
-              Step 3 of 3
-            </div>
-            <h1 className="text-xl font-extrabold tracking-tight text-foreground sm:text-[1.35rem]">Automation Workspace</h1>
-            <p className="mt-0.5 text-xs text-muted-foreground">Review the recording on the left and run automations from the studio panel on the right.</p>
-          </div>
-
-          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-semibold text-foreground">{session.sessionName}</span>
+            {sessions.length > 0 && onSessionChange && (
+              <select
+                id="session-select"
+                value={session.sessionId}
+                onChange={(e) => {
+                  const s = sessions.find((s) => s.sessionId === e.target.value);
+                  if (s) onSessionChange(s);
+                }}
+                className="h-8 max-w-[220px] rounded-lg border border-primary/30 bg-background/70 px-3 text-xs text-foreground outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+              >
+                {sessions.map((s) => (
+                  <option key={s.sessionId} value={s.sessionId}>
+                    {s.sessionName}
+                    {s.startedAt ? ` · ${new Date(s.startedAt).toLocaleDateString()}` : ""}
+                  </option>
+                ))}
+              </select>
+            )}
             <span className="rounded-full border border-primary/35 bg-primary/10 px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-[0.1em] text-primary">{session.agentName}</span>
             <span
               className={`rounded-full border px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-[0.1em] ${
@@ -300,33 +417,58 @@ export function SessionDetailView({
                   : "border-amber-500/35 bg-amber-500/10 text-amber-500"
               }`}
             >
-              {transcriptAvailable ? "Transcript Ready" : "Transcript Missing"}
+              {transcriptAvailable ? "Transcript ready" : "Transcript missing"}
             </span>
-          </div>
-        </div>
+          </>
+        ) : (
+          <>
+            <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <div className="mb-1.5 inline-flex rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.11em] text-primary">
+                  Step 3 of 3
+                </div>
+                <h1 className="text-xl font-extrabold tracking-tight text-foreground sm:text-[1.35rem]">Automation Workspace</h1>
+                <p className="mt-0.5 text-xs text-muted-foreground">Review the recording on the left and run automations from the studio panel on the right.</p>
+              </div>
 
-        {sessions.length > 0 && onSessionChange && (
-          <div className="max-w-[26rem]">
-            <label htmlFor="session-select" className="mb-1.5 block text-[0.65rem] font-bold uppercase tracking-[0.1em] text-primary/80">
-              Choose the session to automate
-            </label>
-            <select
-              id="session-select"
-              value={session.sessionId}
-              onChange={(e) => {
-                const s = sessions.find((s) => s.sessionId === e.target.value);
-                if (s) onSessionChange(s);
-              }}
-              className="h-9 w-full rounded-lg border border-primary/30 bg-background/70 px-3 text-sm text-foreground outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
-            >
-              {sessions.map((s) => (
-                <option key={s.sessionId} value={s.sessionId}>
-                  {s.sessionName}
-                  {s.startedAt ? ` · ${new Date(s.startedAt).toLocaleDateString()}` : ""}
-                </option>
-              ))}
-            </select>
-          </div>
+              <div className="flex items-center gap-1.5">
+                <span className="rounded-full border border-primary/35 bg-primary/10 px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-[0.1em] text-primary">{session.agentName}</span>
+                <span
+                  className={`rounded-full border px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-[0.1em] ${
+                    transcriptAvailable
+                      ? "border-primary/35 bg-primary/10 text-primary"
+                      : "border-amber-500/35 bg-amber-500/10 text-amber-500"
+                  }`}
+                >
+                  {transcriptAvailable ? "Transcript Ready" : "Transcript Missing"}
+                </span>
+              </div>
+            </div>
+
+            {sessions.length > 0 && onSessionChange && (
+              <div className="max-w-[26rem]">
+                <label htmlFor="session-select" className="mb-1.5 block text-[0.65rem] font-bold uppercase tracking-[0.1em] text-primary/80">
+                  Choose the session to automate
+                </label>
+                <select
+                  id="session-select"
+                  value={session.sessionId}
+                  onChange={(e) => {
+                    const s = sessions.find((s) => s.sessionId === e.target.value);
+                    if (s) onSessionChange(s);
+                  }}
+                  className="h-9 w-full rounded-lg border border-primary/30 bg-background/70 px-3 text-sm text-foreground outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                >
+                  {sessions.map((s) => (
+                    <option key={s.sessionId} value={s.sessionId}>
+                      {s.sessionName}
+                      {s.startedAt ? ` · ${new Date(s.startedAt).toLocaleDateString()}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </>
         )}
       </section>
 
@@ -336,6 +478,7 @@ export function SessionDetailView({
         </div>
       )}
 
+      {!compactLayout && (
       <div className="mb-8 grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.95fr)]">
         <div className="rounded-xl border border-primary/30 bg-card/55 p-4 md:p-5">
           {detailsLoading ? (
@@ -429,10 +572,27 @@ export function SessionDetailView({
           )}
         </div>
 
-        <div className="self-start xl:sticky xl:top-24 xl:max-h-[calc(100vh-7.2rem)] xl:overflow-y-auto xl:pr-1">
+        <div className="self-start space-y-4 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7.2rem)] xl:overflow-y-auto xl:pr-1">
+          <GeneratedAssets
+            assets={assets}
+            onViewAsset={handleViewGeneratedAsset}
+            resolveAssetContent={resolveGeneratedAssetContent}
+            variant="compact"
+          />
+
           <AutomationOptions
-            onOpenConfigDrawer={onOpenConfigDrawer}
-            onOpenSummaryPanel={() => setIsSummaryPanelOpen(true)}
+            onOpenConfigDrawer={(type, title, icon) => {
+              const handled = navigateToRachelAutomation(type);
+              if (!handled) {
+                onOpenConfigDrawer(type, title, icon);
+              }
+            }}
+            onOpenSummaryPanel={() => {
+              const handled = navigateToRachelAutomation("summary");
+              if (!handled) {
+                setIsSummaryPanelOpen(true);
+              }
+            }}
             agentName={session.agentName}
             layout="grid"
             className="mt-0"
@@ -440,33 +600,14 @@ export function SessionDetailView({
           />
         </div>
       </div>
+      )}
 
-      {/* All summaries for this session (latest first), shown when opened from Generate Summary */}
+      {/* All summaries for this session (latest first) */}
       {isSummaryPanelOpen && (
         <div id="session-summaries-panel" className="mb-10 space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <h3 className="text-[1.4rem] font-bold text-primary flex items-center gap-2">
-              <span>Session Summaries</span>
-            </h3>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => onOpenConfigDrawer("summary", "Generate Summary", "📄")}
-                disabled={!transcriptAvailable}
-                title={!transcriptAvailable ? "No transcript for this session. Transcripts are saved when the call is finalized with a transcript." : undefined}
-                className="bg-primary text-primary-foreground border-2 border-primary px-4 py-2 rounded-[999px] text-[0.85rem] font-semibold cursor-pointer transition-all hover:bg-primary/90 hover:shadow-elegant uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary"
-              >
-                Create Summary
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsSummaryPanelOpen(false)}
-                className="text-xs text-muted-foreground hover:text-primary bg-transparent border-none cursor-pointer"
-              >
-                Close
-              </button>
-            </div>
-          </div>
+          <h3 className="text-[1.4rem] font-bold text-primary">
+            Session Summaries
+          </h3>
 
           {summaries.length === 0 ? (
             <p className="text-sm text-muted-foreground">
@@ -530,26 +671,6 @@ export function SessionDetailView({
           )}
         </div>
       )}
-
-      <GeneratedAssets
-        assets={assets}
-        onViewAsset={(asset) => {
-          if (asset.type === "summary") {
-            setIsSummaryPanelOpen(true);
-            setTimeout(() => {
-              const el = document.getElementById("session-summaries-panel");
-              if (el) {
-                el.scrollIntoView({ behavior: "smooth", block: "start" });
-              }
-            }, 50);
-          } else if (asset.type === "clarity-scorer") {
-            const el = document.getElementById("clarity-score-panel");
-            if (el) {
-              el.scrollIntoView({ behavior: "smooth", block: "start" });
-            }
-          }
-        }}
-      />
 
       {clarityScore && clarityScore.dimensions && clarityScore.dimensions.length > 0 && (
         <div
@@ -686,6 +807,40 @@ export function SessionDetailView({
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {compactLayout && assets.length > 0 && (
+        <div className="mb-10">
+          <GeneratedAssets
+            assets={assets}
+            onViewAsset={handleViewGeneratedAsset}
+            resolveAssetContent={resolveGeneratedAssetContent}
+            variant="full"
+          />
+        </div>
+      )}
+
+      {compactLayout && (
+        <div className="mt-10 rounded-xl border border-primary/25 bg-card/55 p-4">
+          <AutomationOptions
+            onOpenConfigDrawer={(type, title, icon) => {
+              const handled = navigateToRachelAutomation(type);
+              if (!handled) {
+                onOpenConfigDrawer(type, title, icon);
+              }
+            }}
+            onOpenSummaryPanel={() => {
+              const handled = navigateToRachelAutomation("summary");
+              if (!handled) {
+                setIsSummaryPanelOpen(true);
+              }
+            }}
+            agentName={session.agentName}
+            layout="grid"
+            className="mt-0"
+            title="Available automations"
+          />
         </div>
       )}
 

@@ -69,6 +69,33 @@ export function ChooseMeetingTypeModal({
         </p>
 
         <div className="grid gap-4 md:grid-cols-2 mb-8">
+          {/* Phone call card (primary option) */}
+          <button
+            type="button"
+            onClick={() => setSelectedType("phone")}
+            className={`flex flex-col items-start text-left gap-3 p-5 rounded-xl border transition-all cursor-pointer bg-background/60 hover:bg-primary/5 ${
+              selectedType === "phone"
+                ? "border-primary ring-2 ring-primary/40 shadow-elegant"
+                : "border-border hover:border-primary/40"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                <Phone className="w-5 h-5" />
+              </div>
+              <div className="font-semibold text-foreground text-base md:text-lg">
+                Phone call
+              </div>
+            </div>
+            <p className="text-xs md:text-sm text-muted-foreground">
+              Use the existing Tacit phone workflow. The SME dials a number and speaks with your
+              AI agent.
+            </p>
+            <div className="mt-1 inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-[0.7rem] font-medium text-primary">
+              Available now
+            </div>
+          </button>
+
           {/* Virtual meeting card */}
           <button
             type="button"
@@ -93,33 +120,6 @@ export function ChooseMeetingTypeModal({
             </p>
             <div className="mt-1 inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-[0.7rem] font-medium text-primary">
               Coming soon
-            </div>
-          </button>
-
-          {/* Phone call card */}
-          <button
-            type="button"
-            onClick={() => setSelectedType("phone")}
-            className={`flex flex-col items-start text-left gap-3 p-5 rounded-xl border transition-all cursor-pointer bg-background/60 hover:bg-primary/5 ${
-              selectedType === "phone"
-                ? "border-primary ring-2 ring-primary/40 shadow-elegant"
-                : "border-border hover:border-primary/40"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                <Phone className="w-5 h-5" />
-              </div>
-              <div className="font-semibold text-foreground text-base md:text-lg">
-                Phone call
-              </div>
-            </div>
-            <p className="text-xs md:text-sm text-muted-foreground">
-              Use the existing Tacit phone workflow. The SME dials a number and speaks with your
-              AI agent.
-            </p>
-            <div className="mt-1 inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-[0.7rem] font-medium text-primary">
-              Available now
             </div>
           </button>
         </div>
