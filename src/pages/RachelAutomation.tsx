@@ -39,12 +39,8 @@ export default function RachelAutomation() {
   const sessionsForAgent = state.sessionsForAgent ?? [];
 
   const handleBack = () => {
-    // Prefer going back to where user came from; otherwise, go to dashboard.
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate("/dashboard");
-    }
+    // Always go to dashboard home so we never send user back to login.
+    navigate("/dashboard");
   };
 
   const automationLabel = automationId.replace(/-/g, " ");

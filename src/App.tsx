@@ -23,9 +23,7 @@ const App = () => {
   useEffect(() => {
     // Set dark mode by default to match Supabase theme
     document.documentElement.classList.add('dark');
-    // Clear any old localStorage user data
-    localStorage.removeItem("user");
-    
+
     // Test Supabase connection
     const testSupabaseConnection = async () => {
       try {

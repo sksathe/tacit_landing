@@ -1,8 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Menu } from "lucide-react";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-import { SessionsSidebar } from "@/components/dashboard/SessionsSidebar";
 import { DashboardView } from "@/components/dashboard/DashboardView";
 import { AutomateAgentPicker } from "@/components/dashboard/AutomateAgentPicker";
 import { AutomateSessionsList } from "@/components/dashboard/AutomateSessionsList";
@@ -16,7 +14,6 @@ import type { SessionItem } from "@/components/dashboard/AutomateSessionsList";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [currentView, setCurrentView] = useState<"dashboard" | "automate-agents" | "automate-sessions" | "session">("dashboard");
   const [selectedAgent, setSelectedAgent] = useState<TacitAgent | null>(null);
   const [sessionsForAgent, setSessionsForAgent] = useState<SessionItem[]>([]);
@@ -37,10 +34,6 @@ const Dashboard = () => {
 
   const [meetingTypeFlow, setMeetingTypeFlow] = useState<"start" | "schedule" | null>(null);
 
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
-
   const openAutomateFlow = () => {
     setCurrentView("automate-agents");
     setSelectedAgent(null);
@@ -60,12 +53,6 @@ const Dashboard = () => {
       sessionId: session.sessionId,
     });
     setCurrentView("session");
-  };
-
-  const openSessionDetailFromSidebar = (agentName: string, sessionName: string, sessionId: string) => {
-    setSelectedSession({ agentName, sessionName, sessionId });
-    setCurrentView("session");
-    setIsSidebarOpen(false);
   };
 
   const backToDashboard = () => {
@@ -103,33 +90,6 @@ const Dashboard = () => {
         <div className="absolute bottom-[-14rem] left-1/2 h-[30rem] w-[40rem] -translate-x-1/2 rounded-full bg-primary/5 blur-3xl" />
       </div>
       <DashboardHeader />
-      
-      {/* Sidebar toggle */}
-      <button
-        type="button"
-        aria-label="Open menu"
-        onClick={toggleSidebar}
-        className={`fixed left-4 top-4 z-[1001] flex h-9 w-9 items-center justify-center rounded-lg border border-primary/25 bg-background/90 text-primary shadow-sm backdrop-blur-sm transition-all hover:border-primary hover:bg-primary/10 hover:shadow ${
-          isSidebarOpen ? "pointer-events-none opacity-0" : ""
-        }`}
-      >
-        <Menu className="h-5 w-5" strokeWidth={2} />
-      </button>
-
-      {/* Sidebar */}
-      <SessionsSidebar
-        isOpen={isSidebarOpen}
-        onClose={toggleSidebar}
-        onSessionClick={openSessionDetailFromSidebar}
-      />
-
-      {/* Sidebar Overlay */}
-      {isSidebarOpen && (
-        <div
-          onClick={toggleSidebar}
-          className="fixed inset-0 bg-background/50 backdrop-blur-sm z-[998]"
-        />
-      )}
 
       {/* Main Content */}
       <main className="mx-auto max-w-[1700px] px-5 pb-20 pt-10 sm:px-8 sm:pt-14 lg:px-10">

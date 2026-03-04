@@ -40,7 +40,10 @@ export function DashboardView({ onStartSession, onScheduleSession, onAutomateSes
             <p className="mb-8 max-w-[48ch] text-[1rem] leading-relaxed text-muted-foreground md:text-[1.08rem]">
               Begin a new knowledge capture session with an AI agent. Start now or schedule for later.
             </p>
-            <div className="grid grid-cols-2 gap-3 text-[0.77rem] font-semibold uppercase tracking-[0.12em] text-primary/80 md:max-w-[420px]">
+            <div
+              className="grid grid-cols-2 gap-3 text-[0.77rem] font-semibold uppercase tracking-[0.12em] text-primary/80 md:max-w-[420px] cursor-default"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="rounded-lg border border-primary/25 bg-primary/10 px-3 py-2">Invite SMEs instantly</div>
               <div className="rounded-lg border border-primary/25 bg-primary/10 px-3 py-2">Call-in workflow</div>
             </div>
@@ -84,7 +87,10 @@ export function DashboardView({ onStartSession, onScheduleSession, onAutomateSes
             <p className="mb-8 max-w-[48ch] text-[1rem] leading-relaxed text-muted-foreground md:text-[1.08rem]">
               Turn your past sessions into structured knowledge. Run existing automations or build a new workflow.
             </p>
-            <div className="grid grid-cols-2 gap-3 text-[0.77rem] font-semibold uppercase tracking-[0.12em] text-primary/80 md:max-w-[470px]">
+            <div
+              className="grid grid-cols-2 gap-3 text-[0.77rem] font-semibold uppercase tracking-[0.12em] text-primary/80 md:max-w-[470px] cursor-default"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="rounded-lg border border-primary/25 bg-primary/10 px-3 py-2">Notebook-style workspace</div>
               <div className="rounded-lg border border-primary/25 bg-primary/10 px-3 py-2">One-click automations</div>
             </div>
