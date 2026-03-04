@@ -60,7 +60,7 @@ router.get('/', authMiddleware, async (req: AuthenticatedRequest, res: Response)
 
     console.log(`✅ Found ${data?.length || 0} projects for user ${userId}`);
     if (data && data.length > 0) {
-      console.log('📋 Projects:', data.map(p => ({ id: p.id, name: p.name })));
+      console.log('📋 Projects:', data.map((p: any) => ({ id: p.id, name: p.name })));
     } else {
       console.warn('⚠️ No projects found. User may not be assigned to any projects.');
       console.warn('💡 Check project_members table to ensure user is assigned to a project.');

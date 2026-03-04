@@ -56,10 +56,10 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
 }
 
 // Anon client for user endpoints (validates JWT)
-export const supabaseAnon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+export const supabaseAnon = createClient(SUPABASE_URL as string, SUPABASE_ANON_KEY as string);
 
 // Service role client for MCP server (bypasses RLS)
-export const supabaseService = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+export const supabaseService = createClient(SUPABASE_URL as string, SUPABASE_SERVICE_ROLE_KEY as string, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
