@@ -177,6 +177,51 @@ export function ConfigDrawer({ open, onClose, automation }: ConfigDrawerProps) {
           },
         });
         window.dispatchEvent(event);
+      } else if (automation.type === "compliance-gap-analysis" && automation.sessionId) {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error("Not authenticated. Please log in.");
+        }
+
+        const API_URL = import.meta.env.VITE_API_URL || "";
+        const response = await fetch(`${API_URL}/api/sessions/${automation.sessionId}/compliance-gap-analysis`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            tone: config.outputTone,
+            audience: config.targetAudience,
+            instructions: config.additionalInstructions,
+          }),
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to generate compliance gap analysis.");
+        }
+
+        const { complianceGapAnalysis } = await response.json();
+
+        toast({
+          title: "Compliance gap analysis generated",
+          description: "Compliance strengths, gaps, and next steps were generated from this transcript.",
+        });
+
+        const event = new CustomEvent("assetGenerated", {
+          detail: {
+            type: automation.type,
+            title: automation.title,
+            icon: automation.icon,
+            config,
+            complianceGapAnalysis,
+          },
+        });
+        window.dispatchEvent(event);
       } else if ((automation.type === "visual-concept-map" || automation.type === "financial-concept-map") && automation.sessionId) {
         const { supabase } = await import("@/integrations/supabase/client");
         const {

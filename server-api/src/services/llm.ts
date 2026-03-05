@@ -124,6 +124,32 @@ export interface Soc2DocumentOptions {
   instructions?: string;
 }
 
+interface ComplianceFinding {
+  area: string;
+  status: 'good' | 'bad' | 'partial' | 'not_specified';
+  evidence_from_transcript: string[];
+  impact: string;
+  recommendation: string;
+}
+
+export interface ComplianceGapAnalysisResult {
+  model: string;
+  title: string;
+  summary: string;
+  strengths: string[];
+  gaps: string[];
+  findings: ComplianceFinding[];
+  priority_actions: string[];
+  future_steps: string[];
+  disclaimer: string;
+}
+
+export interface ComplianceGapAnalysisOptions {
+  tone?: string;
+  audience?: string;
+  instructions?: string;
+}
+
 /**
  * Generate a summary from a transcript JSON using OpenAI.
  * The transcript is passed as JSON; the model returns a structured JSON object.
@@ -722,5 +748,121 @@ ${extraInstructions ? `- Additional instructions: ${extraInstructions}` : '- Add
     management_assertion_draft: String(parsed?.management_assertion_draft ?? ''),
     auditor_notes: Array.isArray(parsed?.auditor_notes) ? parsed.auditor_notes.map((x: any) => String(x)) : [],
     disclaimer: String(parsed?.disclaimer ?? 'This draft is transcript-grounded and requires formal compliance review before audit submission.'),
+  };
+}
+
+export async function generateComplianceGapAnalysisFromTranscriptRaw(
+  rawTranscript: any,
+  options?: ComplianceGapAnalysisOptions
+): Promise<ComplianceGapAnalysisResult> {
+  if (!OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY is not configured for the server API');
+  }
+
+  const tone = options?.tone?.trim();
+  const audience = options?.audience?.trim();
+  const extraInstructions = options?.instructions?.trim();
+
+  const prompt = `You are a compliance analyst creating a gap-analysis report from a meeting transcript JSON.
+
+CRITICAL RULES:
+- Use only facts present in the transcript.
+- Do NOT invent policies, controls, tools, owners, or audit evidence.
+- Clearly separate what appears "good" vs "bad/gap" vs "future steps".
+- If data is missing, mark as "not_specified".
+
+Return ONLY JSON in this exact shape:
+{
+  "title": string,
+  "summary": string,
+  "strengths": string[],
+  "gaps": string[],
+  "findings": [
+    {
+      "area": string,
+      "status": "good" | "bad" | "partial" | "not_specified",
+      "evidence_from_transcript": string[],
+      "impact": string,
+      "recommendation": string
+    }
+  ],
+  "priority_actions": string[],
+  "future_steps": string[],
+  "disclaimer": string
+}
+
+Guidance:
+- strengths = what appears compliant/controlled based on transcript evidence
+- gaps = major missing controls, ambiguity, or risk exposure
+- future_steps = practical next steps for compliance readiness
+- findings should be concise and audit-friendly
+
+Optional style hints:
+${tone ? `- Tone: ${tone}` : '- Tone: professional'}
+${audience ? `- Audience: ${audience}` : '- Audience: compliance and operations stakeholders'}
+${extraInstructions ? `- Additional instructions: ${extraInstructions}` : '- Additional instructions: none'}
+`;
+
+  const body = {
+    model: LLM_MODEL,
+    messages: [
+      { role: 'system', content: prompt },
+      {
+        role: 'user',
+        content: `Here is the transcript JSON:\n\n${JSON.stringify(rawTranscript, null, 2)}`,
+      },
+    ],
+    response_format: { type: 'json_object' as const },
+  };
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(`OpenAI API error (${response.status}) while generating compliance gap analysis: ${text || response.statusText}`);
+  }
+
+  const data: any = await response.json();
+  const content = data?.choices?.[0]?.message?.content;
+  if (!content) {
+    throw new Error('OpenAI returned no content for compliance gap analysis');
+  }
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw new Error('Failed to parse OpenAI compliance gap analysis JSON');
+  }
+
+  return {
+    model: LLM_MODEL,
+    title: String(parsed?.title ?? 'Compliance Gap Analysis'),
+    summary: String(parsed?.summary ?? ''),
+    strengths: Array.isArray(parsed?.strengths) ? parsed.strengths.map((x: any) => String(x)) : [],
+    gaps: Array.isArray(parsed?.gaps) ? parsed.gaps.map((x: any) => String(x)) : [],
+    findings: Array.isArray(parsed?.findings)
+      ? parsed.findings.map((f: any) => ({
+          area: String(f?.area ?? ''),
+          status: f?.status === 'good' || f?.status === 'bad' || f?.status === 'partial' || f?.status === 'not_specified'
+            ? f.status
+            : 'not_specified',
+          evidence_from_transcript: Array.isArray(f?.evidence_from_transcript)
+            ? f.evidence_from_transcript.map((x: any) => String(x))
+            : [],
+          impact: String(f?.impact ?? ''),
+          recommendation: String(f?.recommendation ?? ''),
+        }))
+      : [],
+    priority_actions: Array.isArray(parsed?.priority_actions) ? parsed.priority_actions.map((x: any) => String(x)) : [],
+    future_steps: Array.isArray(parsed?.future_steps) ? parsed.future_steps.map((x: any) => String(x)) : [],
+    disclaimer: String(parsed?.disclaimer ?? 'This report is transcript-grounded and requires formal compliance validation before regulatory reliance.'),
   };
 }

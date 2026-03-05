@@ -6,6 +6,7 @@ import {
   generateClarityScoreFromTranscriptRaw,
   generateFinancialConceptMapFromTranscriptRaw,
   generateSoc2DocumentFromTranscriptRaw,
+  generateComplianceGapAnalysisFromTranscriptRaw,
 } from '../services/llm.js';
 
 const router = Router();
@@ -348,6 +349,38 @@ router.get('/:id/automation-results', authMiddleware, async (req: AuthenticatedR
   }
 });
 
+// Get a specific saved automation result by result id for this session.
+router.get('/:id/automation-results/item/:resultId', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const id = String(req.params.id);
+    const resultId = String(req.params.resultId);
+
+    const { data, error } = await req.supabaseClient!
+      .from('automation_results')
+      .select('*')
+      .eq('id', resultId)
+      .eq('call_session_id', id)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) {
+      res.status(404).json({ error: 'Automation result not found' });
+      return;
+    }
+
+    const signedUrl = await createSignedUrl(data.storage_path);
+    res.json({
+      result: {
+        ...data,
+        signed_url: signedUrl,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error fetching automation result by id:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch automation result' });
+  }
+});
+
 // Generate (or regenerate) a summary for a session based on its transcript
 router.post('/:id/summary', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -589,6 +622,78 @@ router.post('/:id/soc2-document', authMiddleware, async (req: AuthenticatedReque
   } catch (error: any) {
     console.error('Error generating SOC2 document:', error);
     res.status(500).json({ error: error.message || 'Failed to generate SOC2 document' });
+  }
+});
+
+router.post('/:id/compliance-gap-analysis', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const id = String(req.params.id);
+
+    const { data: session, error: sessionError } = await req.supabaseClient!
+      .from('call_sessions')
+      .select('id, org_id, project_id, transcript:transcripts(*)')
+      .eq('id', id)
+      .single();
+
+    if (sessionError) throw sessionError;
+    if (!session) {
+      res.status(404).json({ error: 'Session not found' });
+      return;
+    }
+
+    const transcriptRecord = Array.isArray(session.transcript)
+      ? session.transcript[0]
+      : session.transcript;
+
+    if (!transcriptRecord?.raw) {
+      res.status(400).json({
+        error:
+          'No transcript available for this session. Make sure the call was finalized with a transcript.',
+      });
+      return;
+    }
+
+    const { instructions, tone, audience } = req.body || {};
+    const complianceGapAnalysis = await generateComplianceGapAnalysisFromTranscriptRaw(transcriptRecord.raw, {
+      instructions,
+      tone,
+      audience,
+    });
+
+    const preview = [
+      complianceGapAnalysis.title,
+      complianceGapAnalysis.summary,
+      ...(Array.isArray(complianceGapAnalysis.strengths)
+        ? complianceGapAnalysis.strengths.slice(0, 3).map((x) => `Good: ${x}`)
+        : []),
+      ...(Array.isArray(complianceGapAnalysis.gaps)
+        ? complianceGapAnalysis.gaps.slice(0, 5).map((x) => `Gap: ${x}`)
+        : []),
+      ...(Array.isArray(complianceGapAnalysis.future_steps)
+        ? complianceGapAnalysis.future_steps.slice(0, 3).map((x) => `Next: ${x}`)
+        : []),
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    await persistAutomationResult({
+      req,
+      sessionId: id,
+      orgId: session.org_id,
+      projectId: session.project_id,
+      automationType: 'compliance-gap-analysis',
+      title: 'Compliance Gap Analysis',
+      model: complianceGapAnalysis.model,
+      mimeType: 'application/json',
+      payload: complianceGapAnalysis,
+      previewText: preview,
+      extension: 'json',
+    });
+
+    res.json({ complianceGapAnalysis });
+  } catch (error: any) {
+    console.error('Error generating compliance gap analysis:', error);
+    res.status(500).json({ error: error.message || 'Failed to generate compliance gap analysis' });
   }
 });
 

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { AutomationOptions } from "./AutomationOptions";
+import { AutomationOutputModal } from "./AutomationOutputModal";
 
 interface AutomationConfigPanelProps {
   automation: {
@@ -8,6 +10,8 @@ interface AutomationConfigPanelProps {
     icon: string;
     sessionId?: string | null;
   } | null;
+  agentName?: string;
+  onSelectAutomation?: (type: string, title: string, icon: string) => void;
 }
 
 interface AutomationRunResult {
@@ -38,6 +42,8 @@ function getDefaultInstructions(automationType: string | undefined): string {
       return "Generate a whiteboard sketchnote architecture visual with a strong central system, surrounding sections, clear directional arrows, short readable labels, and a blue/teal corporate explainer style.";
     case "soc2-document":
       return "Generate a SOC 2-ready documentation draft with trust services mappings, control evidence, identified gaps, and remediation actions. Mark unknown areas as not specified.";
+    case "compliance-gap-analysis":
+      return "Generate a compliance gap analysis with clear strengths (good controls), weaknesses/gaps (bad or missing controls), impact, and prioritized future remediation steps.";
     default:
       return "Create a structured knowledge asset from the transcript with clear sections, concrete details, decisions, and next steps; call out risks and open questions (no unsupported claims).";
   }
@@ -50,7 +56,7 @@ function getDefaultVisualMode(automationType: string | undefined): "standard" | 
   return "standard";
 }
 
-export function AutomationConfigPanel({ automation }: AutomationConfigPanelProps) {
+export function AutomationConfigPanel({ automation, agentName, onSelectAutomation }: AutomationConfigPanelProps) {
   const [config, setConfig] = useState(() => ({
     outputTone: "professional",
     targetAudience: "",
@@ -59,7 +65,7 @@ export function AutomationConfigPanel({ automation }: AutomationConfigPanelProps
   }));
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<AutomationRunResult | null>(null);
-  const [isViewOpen, setIsViewOpen] = useState(false);
+  const [isOutputOpen, setIsOutputOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -73,13 +79,11 @@ export function AutomationConfigPanel({ automation }: AutomationConfigPanelProps
       });
       setIsProcessing(false);
       setResult(null);
+      setIsOutputOpen(false);
     }
   }, [automation]);
 
   if (!automation) return null;
-
-  const outputText = result?.outputText ?? "";
-  const imageDataUrl = result?.imageDataUrl ?? "";
 
   const toMarkdownSummary = (summary: any) => {
     if (typeof summary === "string") return summary;
@@ -248,6 +252,62 @@ export function AutomationConfigPanel({ automation }: AutomationConfigPanelProps
     return lines.join("\n").trim() || "SOC2 document generated, but no readable text was returned.";
   };
 
+  const toMarkdownComplianceGapAnalysis = (analysis: any) => {
+    if (typeof analysis === "string") return analysis;
+    if (!analysis || typeof analysis !== "object") return "Compliance gap analysis generated, but output was empty.";
+
+    const lines: string[] = [];
+    lines.push(`# ${String(analysis.title ?? "Compliance Gap Analysis")}`);
+
+    if (analysis.summary) {
+      lines.push("", "## Summary", String(analysis.summary));
+    }
+
+    const strengths: any[] = Array.isArray(analysis.strengths) ? analysis.strengths : [];
+    lines.push("", "## Good (Strengths)");
+    if (strengths.length) strengths.forEach((x) => lines.push(`- ${String(x)}`));
+    else lines.push("- Not specified in transcript.");
+
+    const gaps: any[] = Array.isArray(analysis.gaps) ? analysis.gaps : [];
+    lines.push("", "## Bad (Gaps)");
+    if (gaps.length) gaps.forEach((x) => lines.push(`- ${String(x)}`));
+    else lines.push("- No major gaps identified from transcript evidence.");
+
+    const findings: any[] = Array.isArray(analysis.findings) ? analysis.findings : [];
+    lines.push("", "## Findings");
+    if (findings.length) {
+      findings.forEach((finding) => {
+        lines.push("", `### ${String(finding.area ?? "Area")}`);
+        lines.push(`Status: ${String(finding.status ?? "not_specified")}`);
+        if (finding.impact) lines.push(`Impact: ${String(finding.impact)}`);
+        if (finding.recommendation) lines.push(`Recommendation: ${String(finding.recommendation)}`);
+
+        const evidence: any[] = Array.isArray(finding.evidence_from_transcript) ? finding.evidence_from_transcript : [];
+        lines.push("Evidence from transcript:");
+        if (evidence.length) evidence.forEach((e) => lines.push(`- ${String(e)}`));
+        else lines.push("- Not specified in transcript.");
+      });
+    } else {
+      lines.push("- No detailed findings returned.");
+    }
+
+    const priorityActions: any[] = Array.isArray(analysis.priority_actions) ? analysis.priority_actions : [];
+    lines.push("", "## Priority Actions");
+    if (priorityActions.length) priorityActions.forEach((x) => lines.push(`- ${String(x)}`));
+    else lines.push("- Not specified in transcript.");
+
+    const futureSteps: any[] = Array.isArray(analysis.future_steps) ? analysis.future_steps : [];
+    lines.push("", "## Future Steps");
+    if (futureSteps.length) futureSteps.forEach((x) => lines.push(`- ${String(x)}`));
+    else lines.push("- Not specified in transcript.");
+
+    if (analysis.disclaimer) {
+      lines.push("", "## Disclaimer", String(analysis.disclaimer));
+    }
+
+    return lines.join("\n").trim() || "Compliance gap analysis generated, but no readable text was returned.";
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -317,6 +377,17 @@ export function AutomationConfigPanel({ automation }: AutomationConfigPanelProps
             title: automation.title,
             icon: automation.icon,
             outputText: toMarkdownSoc2(saved.result_json || {}),
+            downloadExt: "md",
+          });
+          return;
+        }
+
+        if (savedType === "compliance-gap-analysis") {
+          setResult({
+            type: automation.type,
+            title: automation.title,
+            icon: automation.icon,
+            outputText: toMarkdownComplianceGapAnalysis(saved.result_json || {}),
             downloadExt: "md",
           });
           return;
@@ -398,6 +469,7 @@ export function AutomationConfigPanel({ automation }: AutomationConfigPanelProps
           outputText: toMarkdownSummary(summary),
           downloadExt: "md",
         });
+        setIsOutputOpen(true);
 
         // Emit assetGenerated event so other views (e.g., session overview) can also react.
         const event = new CustomEvent("assetGenerated", {
@@ -449,6 +521,7 @@ export function AutomationConfigPanel({ automation }: AutomationConfigPanelProps
           outputText: toMarkdownClarity(clarity),
           downloadExt: "md",
         });
+        setIsOutputOpen(true);
 
         const event = new CustomEvent("assetGenerated", {
           detail: {
@@ -501,6 +574,7 @@ export function AutomationConfigPanel({ automation }: AutomationConfigPanelProps
           outputText: toMarkdownSoc2(soc2Document),
           downloadExt: "md",
         });
+        setIsOutputOpen(true);
 
         const event = new CustomEvent("assetGenerated", {
           detail: {
@@ -509,6 +583,59 @@ export function AutomationConfigPanel({ automation }: AutomationConfigPanelProps
             icon: automation.icon,
             config,
             soc2Document,
+          },
+        });
+        window.dispatchEvent(event);
+      } else if (automation.type === "compliance-gap-analysis" && automation.sessionId) {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error("Not authenticated. Please log in.");
+        }
+
+        const response = await fetch(`${API_URL}/api/sessions/${automation.sessionId}/compliance-gap-analysis`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            tone: config.outputTone,
+            audience: config.targetAudience,
+            instructions: config.additionalInstructions,
+          }),
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to generate compliance gap analysis.");
+        }
+
+        const { complianceGapAnalysis } = await response.json();
+
+        toast({
+          title: "Compliance gap analysis generated",
+          description: "Compliance strengths, gaps, and next steps were generated from this transcript.",
+        });
+
+        setResult({
+          type: automation.type,
+          title: automation.title,
+          icon: automation.icon,
+          outputText: toMarkdownComplianceGapAnalysis(complianceGapAnalysis),
+          downloadExt: "md",
+        });
+        setIsOutputOpen(true);
+
+        const event = new CustomEvent("assetGenerated", {
+          detail: {
+            type: automation.type,
+            title: automation.title,
+            icon: automation.icon,
+            config,
+            complianceGapAnalysis,
           },
         });
         window.dispatchEvent(event);
@@ -555,6 +682,7 @@ export function AutomationConfigPanel({ automation }: AutomationConfigPanelProps
           imagePrompt: conceptMap?.prompt_used,
           downloadExt: "png",
         });
+        setIsOutputOpen(true);
 
         const event = new CustomEvent("assetGenerated", {
           detail: {
@@ -579,6 +707,7 @@ export function AutomationConfigPanel({ automation }: AutomationConfigPanelProps
             `Instructions:\n${config.additionalInstructions}`.trim(),
           downloadExt: "txt",
         });
+        setIsOutputOpen(true);
 
         const event = new CustomEvent("assetGenerated", {
           detail: {
@@ -602,65 +731,28 @@ export function AutomationConfigPanel({ automation }: AutomationConfigPanelProps
     }
   };
 
-  const handleCopy = async () => {
-    if (!outputText) return;
-    try {
-      await navigator.clipboard.writeText(outputText);
-      toast({
-        title: "Copied to clipboard",
-        description: "The generated output has been copied.",
-      });
-    } catch (err) {
-      console.error("Clipboard error:", err);
-      toast({
-        title: "Copy failed",
-        description: "Unable to copy to clipboard in this browser.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDownload = () => {
-    if (!result) return;
-    const safeTitle = (result?.title || automation.title || "automation-output").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
-    const a = document.createElement("a");
-    if (result.imageDataUrl) {
-      a.href = result.imageDataUrl;
-      a.download = `${safeTitle}.png`;
-    } else {
-      const blob = new Blob([outputText], { type: "text/plain;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      a.href = url;
-      a.download = `${safeTitle}.${result?.downloadExt ?? "txt"}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      return;
-    }
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  };
-
   return (
-    <section className="space-y-6 rounded-xl border border-primary/30 bg-card/60 p-5">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-2xl">
-          {automation.icon}
-        </div>
-        <div>
-          <h1 className="text-lg font-extrabold text-primary sm:text-xl">
-            Configure {automation.title}
-          </h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Tune output and run this automation on the selected recording.
-          </p>
-        </div>
-      </div>
+    <section className="space-y-4">
+      <div className="grid gap-5 xl:grid-cols-[1.2fr,0.8fr]">
+        <div className="space-y-4 rounded-xl border border-primary/25 bg-card/55 p-4">
+          <div className="flex items-start gap-2.5">
+            <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-xl">
+              {automation.icon}
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-[1.05rem] font-extrabold text-primary sm:text-[1.15rem]">
+                Configure {automation.title}
+              </h1>
+              <p className="mt-0.5 text-[0.72rem] text-muted-foreground">
+                Tune output and run this automation on the selected recording.
+              </p>
+            </div>
+          </div>
 
-      <div className="grid gap-5 md:grid-cols-2">
-        <div className="space-y-4">
+          <div className="inline-flex rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.11em] text-primary">
+            Automation Config
+          </div>
+
           <div>
             <label className="mb-1.5 block text-[0.72rem] font-bold uppercase tracking-[0.1em] text-primary/85">
               Output tone
@@ -739,105 +831,44 @@ export function AutomationConfigPanel({ automation }: AutomationConfigPanelProps
           >
             {isProcessing ? "Processing…" : "Run automation"}
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!result) {
+                toast({
+                  title: "No output yet",
+                  description: "Run this automation first, or open a generated asset from the list below.",
+                });
+                return;
+              }
+              setIsOutputOpen(true);
+            }}
+            className="w-full rounded-lg border border-primary/30 px-4 py-2 text-[0.72rem] font-semibold uppercase tracking-[0.11em] text-primary transition-all hover:bg-primary/10"
+          >
+            View latest output
+          </button>
         </div>
 
-        <div className="space-y-3 rounded-lg border border-primary/20 bg-background/40 p-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-primary/80">
-                Output
-              </h2>
-              <p className="mt-0.5 text-[0.7rem] text-muted-foreground">
-                Generated content for this automation will appear here.
-              </p>
-            </div>
-            {result && (
-              <div className="flex gap-2">
-                {result.outputText && (
-                  <button
-                    type="button"
-                    onClick={handleCopy}
-                    className="rounded-md border border-primary/30 px-2 py-1 text-[0.68rem] font-medium text-primary hover:bg-primary/10"
-                  >
-                    Copy
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={handleDownload}
-                  className="rounded-md border border-primary/30 px-2 py-1 text-[0.68rem] font-medium text-primary hover:bg-primary/10"
-                >
-                  Download
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsViewOpen(true)}
-                  className="rounded-md border border-primary/30 px-2 py-1 text-[0.68rem] font-medium text-primary hover:bg-primary/10"
-                >
-                  View
-                </button>
-              </div>
-            )}
-          </div>
-
-          {result ? (
-            result.imageDataUrl ? (
-              <div className="overflow-hidden rounded-md border border-primary/20 bg-black/30 p-2">
-                <img
-                  src={result.imageDataUrl}
-                  alt={`${result.title} output`}
-                  className="h-auto w-full rounded-md object-contain"
-                />
-              </div>
-            ) : (
-              <div className="max-h-[260px] overflow-auto rounded-md border border-primary/20 bg-black/30 p-3 text-xs leading-relaxed text-foreground whitespace-pre-wrap">
-                {outputText}
-              </div>
-            )
-          ) : (
-            <div className="flex h-[180px] items-center justify-center rounded-md border border-dashed border-primary/25 bg-black/20 text-[0.72rem] text-muted-foreground">
-              Run the automation to see results here.
-            </div>
-          )}
+        <div className="rounded-xl border border-primary/25 bg-card/55 p-4">
+          <AutomationOptions
+            layout="grid"
+            className="!mt-0"
+            title="Automation Studio"
+            agentName={agentName}
+            onOpenSummaryPanel={() => onSelectAutomation?.("summary", "Generate Summary", "📄")}
+            onOpenConfigDrawer={(type, title, icon) => onSelectAutomation?.(type, title, icon)}
+          />
         </div>
       </div>
 
-      {isViewOpen && result && (
-        <div
-          className="fixed inset-0 z-[1200] bg-background/70 backdrop-blur-sm"
-          onClick={() => setIsViewOpen(false)}
-        >
-          <div
-            className="mx-auto mt-10 w-[92%] max-w-[1000px] rounded-2xl border border-primary/25 bg-card/95 shadow-elegant"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between gap-3 border-b border-primary/20 px-5 py-4">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">{automation.icon}</span>
-                <div className="text-sm font-semibold text-foreground">{automation.title}</div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsViewOpen(false)}
-                className="rounded-lg border border-primary/20 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10"
-              >
-                Close
-              </button>
-            </div>
-            <div className="max-h-[75vh] overflow-auto px-5 py-4 text-sm leading-relaxed text-foreground whitespace-pre-wrap">
-              {imageDataUrl ? (
-                <img
-                  src={imageDataUrl}
-                  alt={`${result.title} full preview`}
-                  className="h-auto w-full rounded-lg object-contain"
-                />
-              ) : (
-                outputText
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <AutomationOutputModal
+        open={isOutputOpen}
+        onClose={() => setIsOutputOpen(false)}
+        title={result?.title || automation.title}
+        icon={result?.icon || automation.icon}
+        textContent={result?.outputText ?? null}
+        imageUrl={result?.imageDataUrl ?? null}
+      />
     </section>
   );
 }

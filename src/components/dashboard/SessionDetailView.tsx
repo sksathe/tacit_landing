@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { TACIT_AGENTS } from "@/data/agents";
 import { GeneratedAssets } from "./GeneratedAssets";
 import { AutomationOptions } from "./AutomationOptions";
+import { AutomationOutputModal } from "./AutomationOutputModal";
 import type { SessionItem } from "./AutomateSessionsList";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
@@ -60,7 +61,17 @@ interface PersistedAutomationResult {
   id: string;
   automation_type: string;
   title: string;
+  mime_type?: string;
+  preview_text?: string | null;
   created_at?: string | null;
+}
+
+interface AssetListItem {
+  id?: string;
+  type: string;
+  title: string;
+  icon: string;
+  timestamp: string;
 }
 
 interface SessionDetailViewProps {
@@ -84,6 +95,8 @@ interface SessionDetailViewProps {
   compactLayout?: boolean;
   /** When true, hide the top session strip section. */
   hideSessionStrip?: boolean;
+  /** When true, hides the compact bottom "Available automations" block. */
+  hideCompactAutomationOptions?: boolean;
 }
 
 function formatDateTime(iso: string | undefined): string {
@@ -173,6 +186,163 @@ function getAssetIcon(type: string): string {
   }
 }
 
+function toMarkdownSummary(summary: any): string {
+  if (typeof summary === "string") return summary;
+  if (!summary || typeof summary !== "object") return "Summary generated, but output was empty.";
+  const summaryText = summary.summary_text ?? summary.summary ?? summary.text ?? summary.body ?? "";
+  const keyPoints: any[] = Array.isArray(summary.key_points) ? summary.key_points : [];
+  const actionItems: any[] = Array.isArray(summary.action_items) ? summary.action_items : [];
+  const lines: string[] = [];
+  if (summaryText) lines.push(summaryText);
+  if (keyPoints.length) {
+    lines.push("", "### Key takeaways");
+    keyPoints.forEach((p) => lines.push(`- ${String(p)}`));
+  }
+  if (actionItems.length) {
+    lines.push("", "### Action items");
+    actionItems.forEach((a) => lines.push(`- ${typeof a === "string" ? a : JSON.stringify(a)}`));
+  }
+  return lines.join("\n").trim() || "Summary generated, but no readable text was returned.";
+}
+
+function toMarkdownClarity(clarity: any): string {
+  if (typeof clarity === "string") return clarity;
+  if (!clarity || typeof clarity !== "object") return "Clarity score generated, but output was empty.";
+  const lines: string[] = [];
+  if (clarity.summary) lines.push(String(clarity.summary));
+  if (clarity.overallScore != null) lines.push("", `**Overall score:** ${String(clarity.overallScore)}`);
+  if (clarity.overallLabel) lines.push(`**Overall label:** ${String(clarity.overallLabel)}`);
+  const dimensions: any[] = Array.isArray(clarity.dimensions) ? clarity.dimensions : [];
+  if (dimensions.length) {
+    lines.push("", "### Dimensions");
+    dimensions.forEach((d) => {
+      lines.push(`- ${String(d?.label ?? d?.id ?? "Dimension")} (${String(d?.score ?? "0")}/100)`);
+    });
+  }
+  const interpretation: any[] = Array.isArray(clarity.interpretation) ? clarity.interpretation : [];
+  if (interpretation.length) {
+    lines.push("", "### Interpretation");
+    interpretation.forEach((item) => lines.push(`- ${String(item)}`));
+  }
+  return lines.join("\n").trim() || "Clarity score generated, but no readable text was returned.";
+}
+
+function toMarkdownSoc2(doc: any): string {
+  if (typeof doc === "string") return doc;
+  if (!doc || typeof doc !== "object") return "SOC2 document generated, but output was empty.";
+  const lines: string[] = [];
+  lines.push(`# ${String(doc.document_title ?? "SOC 2 Readiness Documentation Draft")}`);
+  if (doc.report_date) lines.push(`Report Date: ${String(doc.report_date)}`);
+  if (doc.system_description) {
+    lines.push("", "## System Description", String(doc.system_description));
+  }
+
+  const inScope: any[] = Array.isArray(doc.scope?.in_scope) ? doc.scope.in_scope : [];
+  const outOfScope: any[] = Array.isArray(doc.scope?.out_of_scope) ? doc.scope.out_of_scope : [];
+  const boundaries: any[] = Array.isArray(doc.scope?.boundaries) ? doc.scope.boundaries : [];
+  lines.push("", "## Scope");
+  lines.push("### In Scope");
+  if (inScope.length) inScope.forEach((x) => lines.push(`- ${String(x)}`));
+  else lines.push("- Not specified in transcript.");
+  lines.push("", "### Out of Scope");
+  if (outOfScope.length) outOfScope.forEach((x) => lines.push(`- ${String(x)}`));
+  else lines.push("- Not specified in transcript.");
+  lines.push("", "### Boundaries");
+  if (boundaries.length) boundaries.forEach((x) => lines.push(`- ${String(x)}`));
+  else lines.push("- Not specified in transcript.");
+
+  const tsc: any[] = Array.isArray(doc.trust_services_categories) ? doc.trust_services_categories : [];
+  lines.push("", "## Trust Services Categories");
+  if (tsc.length) tsc.forEach((x) => lines.push(`- ${String(x)}`));
+  else lines.push("- Not specified in transcript.");
+
+  const mappings: any[] = Array.isArray(doc.control_mappings) ? doc.control_mappings : [];
+  lines.push("", "## Control Mapping");
+  if (mappings.length) {
+    mappings.forEach((m) => {
+      lines.push("", `### ${String(m.criteria ?? "Criteria")} - ${String(m.control_objective ?? "Control Objective")}`);
+      lines.push(`Status: ${String(m.status ?? "not_specified")}`);
+      const evidence: any[] = Array.isArray(m.evidence_from_transcript) ? m.evidence_from_transcript : [];
+      lines.push("Evidence:");
+      if (evidence.length) evidence.forEach((e) => lines.push(`- ${String(e)}`));
+      else lines.push("- Not specified in transcript.");
+      const gaps: any[] = Array.isArray(m.gaps) ? m.gaps : [];
+      lines.push("Gaps:");
+      if (gaps.length) gaps.forEach((g) => lines.push(`- ${String(g)}`));
+      else lines.push("- None identified from transcript evidence.");
+    });
+  } else {
+    lines.push("- No control mappings returned.");
+  }
+
+  const evidenceInventory: any[] = Array.isArray(doc.evidence_inventory) ? doc.evidence_inventory : [];
+  lines.push("", "## Evidence Inventory");
+  if (evidenceInventory.length) evidenceInventory.forEach((x) => lines.push(`- ${String(x)}`));
+  else lines.push("- Not specified in transcript.");
+
+  const remediation: any[] = Array.isArray(doc.remediation_plan) ? doc.remediation_plan : [];
+  lines.push("", "## Remediation Plan");
+  if (remediation.length) remediation.forEach((x) => lines.push(`- ${String(x)}`));
+  else lines.push("- Not specified in transcript.");
+
+  if (doc.management_assertion_draft) {
+    lines.push("", "## Management Assertion Draft", String(doc.management_assertion_draft));
+  }
+
+  const auditorNotes: any[] = Array.isArray(doc.auditor_notes) ? doc.auditor_notes : [];
+  lines.push("", "## Auditor Notes");
+  if (auditorNotes.length) auditorNotes.forEach((x) => lines.push(`- ${String(x)}`));
+  else lines.push("- Not specified in transcript.");
+
+  if (doc.disclaimer) lines.push("", "## Disclaimer", String(doc.disclaimer));
+
+  return lines.join("\n").trim() || JSON.stringify(doc, null, 2);
+}
+
+function toMarkdownComplianceGap(analysis: any): string {
+  if (typeof analysis === "string") return analysis;
+  if (!analysis || typeof analysis !== "object") return "Compliance gap analysis generated, but output was empty.";
+  const lines: string[] = [];
+  lines.push(`# ${String(analysis.title ?? "Compliance Gap Analysis")}`);
+  if (analysis.summary) lines.push("", "## Summary", String(analysis.summary));
+  const strengths: any[] = Array.isArray(analysis.strengths) ? analysis.strengths : [];
+  const gaps: any[] = Array.isArray(analysis.gaps) ? analysis.gaps : [];
+  if (strengths.length) {
+    lines.push("", "## Good");
+    strengths.forEach((x) => lines.push(`- ${String(x)}`));
+  }
+  if (gaps.length) {
+    lines.push("", "## Bad / Gaps");
+    gaps.forEach((x) => lines.push(`- ${String(x)}`));
+  }
+  const findings: any[] = Array.isArray(analysis.findings) ? analysis.findings : [];
+  if (findings.length) {
+    lines.push("", "## Findings");
+    findings.forEach((finding) => {
+      lines.push("", `### ${String(finding.area ?? "Area")}`);
+      lines.push(`Status: ${String(finding.status ?? "not_specified")}`);
+      if (finding.impact) lines.push(`Impact: ${String(finding.impact)}`);
+      if (finding.recommendation) lines.push(`Recommendation: ${String(finding.recommendation)}`);
+      const evidence: any[] = Array.isArray(finding.evidence_from_transcript) ? finding.evidence_from_transcript : [];
+      lines.push("Evidence from transcript:");
+      if (evidence.length) evidence.forEach((e) => lines.push(`- ${String(e)}`));
+      else lines.push("- Not specified in transcript.");
+    });
+  }
+  const priorityActions: any[] = Array.isArray(analysis.priority_actions) ? analysis.priority_actions : [];
+  if (priorityActions.length) {
+    lines.push("", "## Priority Actions");
+    priorityActions.forEach((x) => lines.push(`- ${String(x)}`));
+  }
+  const future: any[] = Array.isArray(analysis.future_steps) ? analysis.future_steps : [];
+  if (future.length) {
+    lines.push("", "## Future Steps");
+    future.forEach((x) => lines.push(`- ${String(x)}`));
+  }
+  if (analysis.disclaimer) lines.push("", "## Disclaimer", String(analysis.disclaimer));
+  return lines.join("\n").trim() || JSON.stringify(analysis, null, 2);
+}
+
 export function SessionDetailView({
   session,
   sessions = [],
@@ -184,6 +354,7 @@ export function SessionDetailView({
   hideBreadcrumb = false,
   compactLayout = false,
   hideSessionStrip = false,
+  hideCompactAutomationOptions = false,
 }: SessionDetailViewProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -198,9 +369,16 @@ export function SessionDetailView({
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioDurationSeconds, setAudioDurationSeconds] = useState<number | null>(null);
   const [audioElapsedSeconds, setAudioElapsedSeconds] = useState(0);
-  const [assets, setAssets] = useState<Array<{ type: string; title: string; icon: string; timestamp: string }>>([]);
+  const [assets, setAssets] = useState<AssetListItem[]>([]);
   const [clarityScore, setClarityScore] = useState<ClarityScore | null>(null);
   const [expandedDimensionId, setExpandedDimensionId] = useState<string | null>(null);
+  const [outputModalOpen, setOutputModalOpen] = useState(false);
+  const [outputModalLoading, setOutputModalLoading] = useState(false);
+  const [outputModalError, setOutputModalError] = useState<string | null>(null);
+  const [outputModalTitle, setOutputModalTitle] = useState("Automation Output");
+  const [outputModalIcon, setOutputModalIcon] = useState("✅");
+  const [outputModalText, setOutputModalText] = useState<string | null>(null);
+  const [outputModalImage, setOutputModalImage] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // When route automation changes (e.g. Summary → Clarity Scorer), clean slate: show summary panel only for "summary", scroll to top
@@ -360,6 +538,7 @@ export function SessionDetailView({
 
         setAssets(
           list.map((item) => ({
+            id: item.id,
             type: normalizeAssetType(item.automation_type),
             title: item.title || "Generated Asset",
             icon: getAssetIcon(item.automation_type),
@@ -511,6 +690,53 @@ export function SessionDetailView({
   const elapsedSeconds = audioElapsedSeconds > 0 ? audioElapsedSeconds : totalDurationSeconds != null ? Math.round((progress / 100) * totalDurationSeconds) : 0;
 
   const handleViewGeneratedAsset = (asset: { type: string; title?: string; icon?: string }) => {
+    if (asset && (asset as any).id) {
+      const item = asset as AssetListItem;
+      void (async () => {
+        setOutputModalTitle(item.title || "Automation Output");
+        setOutputModalIcon(item.icon || "✅");
+        setOutputModalText(null);
+        setOutputModalImage(null);
+        setOutputModalError(null);
+        setOutputModalLoading(true);
+        setOutputModalOpen(true);
+        try {
+          const { supabase } = await import("@/integrations/supabase/client");
+          const { data: { session: authSession } } = await supabase.auth.getSession();
+          if (!authSession) throw new Error("Not authenticated");
+
+          const res = await fetch(`${API_URL}/api/sessions/${session.sessionId}/automation-results/item/${item.id}`, {
+            headers: { Authorization: `Bearer ${authSession.access_token}` },
+          });
+          if (!res.ok) throw new Error("Failed to load automation output");
+          const data = await res.json();
+          const saved = data?.result;
+          if (!saved) throw new Error("No output found");
+
+          const type = normalizeAssetType(saved.automation_type || item.type);
+          if (type === "visual-concept-map") {
+            setOutputModalImage(saved.signed_url || null);
+            setOutputModalText(null);
+          } else if (type === "summary") {
+            setOutputModalText(toMarkdownSummary(saved.result_json || {}));
+          } else if (type === "clarity-scorer") {
+            setOutputModalText(toMarkdownClarity(saved.result_json || {}));
+          } else if (type === "soc2-document") {
+            setOutputModalText(toMarkdownSoc2(saved.result_json || {}));
+          } else if (type === "compliance-gap-analysis") {
+            setOutputModalText(toMarkdownComplianceGap(saved.result_json || {}));
+          } else {
+            setOutputModalText(String(saved.preview_text || "No readable output available."));
+          }
+        } catch (e) {
+          setOutputModalError(e instanceof Error ? e.message : "Failed to load output");
+        } finally {
+          setOutputModalLoading(false);
+        }
+      })();
+      return;
+    }
+
     const normalizedType = normalizeAssetType(asset.type);
     const navigated = navigateToAutomationRoute(normalizedType);
     if (navigated) return;
@@ -1072,7 +1298,7 @@ export function SessionDetailView({
         </div>
       )}
 
-      {compactLayout && (
+      {compactLayout && !hideCompactAutomationOptions && (
         <div className="mt-10 rounded-xl border border-primary/25 bg-card/55 p-4">
           <AutomationOptions
             onOpenConfigDrawer={(type, title, icon) => {
@@ -1094,6 +1320,17 @@ export function SessionDetailView({
           />
         </div>
       )}
+
+      <AutomationOutputModal
+        open={outputModalOpen}
+        onClose={() => setOutputModalOpen(false)}
+        title={outputModalTitle}
+        icon={outputModalIcon}
+        loading={outputModalLoading}
+        error={outputModalError}
+        textContent={outputModalText}
+        imageUrl={outputModalImage}
+      />
 
     </>
   );

@@ -55,6 +55,10 @@ export default function RachelAutomation() {
         ? "📄"
         : automationId === "clarity-scorer"
           ? "💎"
+          : automationId === "soc2-document"
+            ? "🛡️"
+            : automationId === "compliance-gap-analysis"
+              ? "📋"
           : automationId === "visual-concept-map" || automationId === "financial-concept-map"
             ? "📈"
             : "✅",
@@ -134,7 +138,19 @@ export default function RachelAutomation() {
         </section>
 
         <div className="mb-6">
-          <AutomationConfigPanel automation={automationMeta} />
+          <AutomationConfigPanel
+            automation={automationMeta}
+            agentName={sessionFromState.agentName}
+            onSelectAutomation={(type) => {
+              navigate(`/dashboard/${agentId}/${type}/${sessionFromState.sessionId}`, {
+                replace: true,
+                state: {
+                  session: sessionFromState,
+                  sessionsForAgent,
+                },
+              });
+            }}
+          />
         </div>
 
         <SessionDetailView
@@ -160,6 +176,7 @@ export default function RachelAutomation() {
           hideBreadcrumb
           compactLayout
           hideSessionStrip
+          hideCompactAutomationOptions
         />
       </main>
     </div>
