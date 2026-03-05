@@ -41,19 +41,25 @@ const PORT = process.env.PORT || 3001;
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:8080';
 
 // Middleware - Allow multiple origins in development + ngrok tunnels
+const frontendOriginsFromEnv = FRONTEND_ORIGIN
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 const allowedOrigins = [
-  FRONTEND_ORIGIN,
+  ...frontendOriginsFromEnv,
   'http://localhost:8080',
   'http://localhost:5173',
   'http://localhost:3000',
 ].filter(Boolean);
+const uniqueAllowedOrigins = Array.from(new Set(allowedOrigins));
 
 const ngrokPatterns = ['.ngrok-free.dev', '.ngrok-free.app', '.ngrok.io'];
 
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (uniqueAllowedOrigins.includes(origin)) return callback(null, true);
     if (ngrokPatterns.some((p) => origin.includes(p))) return callback(null, true);
     console.warn(`⚠️ CORS blocked origin: ${origin}`);
     callback(new Error('Not allowed by CORS'));
@@ -80,5 +86,5 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 app.listen(PORT, () => {
   console.log(`Server API running on port ${PORT}`);
-  console.log(`Frontend origin: ${FRONTEND_ORIGIN}`);
+  console.log(`Frontend origins: ${uniqueAllowedOrigins.join(', ')}`);
 });

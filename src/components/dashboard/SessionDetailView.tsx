@@ -1012,7 +1012,7 @@ export function SessionDetailView({
                 </div>
 
                 <div className="flex justify-center">
-                  <div className="text-center">
+                  <div className="w-[90%] max-w-[1400px] text-center">
                     <button
                       onClick={togglePlayPause}
                       disabled={!audioUrl}
@@ -1025,18 +1025,28 @@ export function SessionDetailView({
                       {isPlaying ? "⏸" : "▶"}
                     </button>
 
-                    <div className="mx-auto flex max-w-[520px] items-center gap-3">
-                      <span className="font-mono text-xs text-muted-foreground">{formatClock(elapsedSeconds)}</span>
+                    <div className="mx-auto w-full space-y-2">
                       <div
                         onClick={handleSeek}
-                        className="h-2 flex-1 cursor-pointer overflow-hidden rounded-full bg-primary/20"
+                        className="h-3 w-full cursor-pointer overflow-hidden rounded-full border border-primary/25 bg-primary/10"
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={Math.round(progress)}
+                        aria-label="Playback progress"
                       >
                         <div
-                          className="h-full bg-primary transition-all duration-300"
+                          className="h-full rounded-full bg-gradient-primary transition-all duration-300"
                           style={{ width: `${progress}%` }}
                         />
                       </div>
-                      <span className="font-mono text-xs text-muted-foreground">{formatClock(totalDurationSeconds)}</span>
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-xs text-muted-foreground">{formatClock(elapsedSeconds)}</span>
+                        <span className="text-[0.65rem] font-semibold uppercase tracking-[0.08em] text-primary/80">
+                          {Math.round(progress)}%
+                        </span>
+                        <span className="font-mono text-xs text-muted-foreground">{formatClock(totalDurationSeconds)}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
