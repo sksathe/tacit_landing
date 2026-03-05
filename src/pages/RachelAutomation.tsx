@@ -50,16 +50,23 @@ export default function RachelAutomation() {
       .split(" ")
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
       .join(" "),
-    icon: automationId === "summary" ? "📄" : automationId === "clarity-scorer" ? "💎" : "✅",
+    icon:
+      automationId === "summary"
+        ? "📄"
+        : automationId === "clarity-scorer"
+          ? "💎"
+          : automationId === "visual-concept-map" || automationId === "financial-concept-map"
+            ? "📈"
+            : "✅",
     sessionId,
   };
 
   return (
     <div className="relative isolate min-h-screen overflow-x-hidden bg-background text-foreground">
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute left-[-12rem] top-[-10rem] h-[28rem] w-[28rem] rounded-full bg-primary/8 blur-3xl" />
-        <div className="absolute right-[-10rem] top-[8rem] h-[24rem] w-[24rem] rounded-full bg-primary/6 blur-3xl" />
-        <div className="absolute bottom-[-14rem] left-1/2 h-[30rem] w-[40rem] -translate-x-1/2 rounded-full bg-primary/5 blur-3xl" />
+        <div className="absolute left-[-12rem] top-[-10rem] h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(circle_at_center,hsl(var(--primary)/0.16),transparent_68%)]" />
+        <div className="absolute right-[-10rem] top-[8rem] h-[24rem] w-[24rem] rounded-full bg-[radial-gradient(circle_at_center,hsl(var(--primary)/0.12),transparent_70%)]" />
+        <div className="absolute bottom-[-14rem] left-1/2 h-[30rem] w-[40rem] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,hsl(var(--primary)/0.1),transparent_72%)]" />
       </div>
 
       <DashboardHeader />
@@ -87,6 +94,45 @@ export default function RachelAutomation() {
           <span className="text-primary font-semibold">{sessionFromState.agentName}</span>
         </div>
 
+        <section className="mb-6 flex flex-wrap items-center gap-4 rounded-lg border border-primary/20 bg-card/40 px-4 py-3">
+          <span className="text-xs font-semibold text-foreground">{sessionFromState.sessionName}</span>
+          {sessionsForAgent.length > 0 && (
+            <select
+              id="session-select-top"
+              value={sessionFromState.sessionId}
+              onChange={(e) => {
+                const selected = sessionsForAgent.find((s) => s.sessionId === e.target.value);
+                if (!selected) return;
+                navigate(`/dashboard/${agentId}/${automationId}/${selected.sessionId}`, {
+                  replace: true,
+                  state: {
+                    session: {
+                      agentName: selected.agentName,
+                      sessionName: selected.sessionName,
+                      sessionId: selected.sessionId,
+                    },
+                    sessionsForAgent,
+                  },
+                });
+              }}
+              className="h-8 max-w-[340px] rounded-lg border border-primary/30 bg-background/70 px-3 text-xs text-foreground outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+            >
+              {sessionsForAgent.map((s) => (
+                <option key={s.sessionId} value={s.sessionId}>
+                  {s.sessionName}
+                  {s.startedAt ? ` · ${new Date(s.startedAt).toLocaleDateString()}` : ""}
+                </option>
+              ))}
+            </select>
+          )}
+          <span className="rounded-full border border-primary/35 bg-primary/10 px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-[0.1em] text-primary">
+            {sessionFromState.agentName}
+          </span>
+          <span className="rounded-full border border-primary/35 bg-primary/10 px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-[0.1em] text-primary">
+            Transcript ready
+          </span>
+        </section>
+
         <div className="mb-6">
           <AutomationConfigPanel automation={automationMeta} />
         </div>
@@ -113,9 +159,9 @@ export default function RachelAutomation() {
           initialAutomationId={automationId}
           hideBreadcrumb
           compactLayout
+          hideSessionStrip
         />
       </main>
     </div>
   );
 }
-

@@ -17,6 +17,7 @@ export function ConfigDrawer({ open, onClose, automation }: ConfigDrawerProps) {
   const [config, setConfig] = useState({
     outputTone: "professional",
     targetAudience: "",
+    visualMode: "illustrative" as "standard" | "illustrative",
     additionalInstructions: "",
   });
   const [isProcessing, setIsProcessing] = useState(false);
@@ -28,6 +29,7 @@ export function ConfigDrawer({ open, onClose, automation }: ConfigDrawerProps) {
       setConfig({
         outputTone: "professional",
         targetAudience: "",
+        visualMode: automation.type === "visual-concept-map" || automation.type === "financial-concept-map" ? "illustrative" : "standard",
         additionalInstructions: "",
       });
       setIsProcessing(false);
@@ -130,6 +132,97 @@ export function ConfigDrawer({ open, onClose, automation }: ConfigDrawerProps) {
           },
         });
         window.dispatchEvent(event);
+      } else if (automation.type === "soc2-document" && automation.sessionId) {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error("Not authenticated. Please log in.");
+        }
+
+        const API_URL = import.meta.env.VITE_API_URL || "";
+        const response = await fetch(`${API_URL}/api/sessions/${automation.sessionId}/soc2-document`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            tone: config.outputTone,
+            audience: config.targetAudience,
+            instructions: config.additionalInstructions,
+          }),
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to generate SOC2 document.");
+        }
+
+        const { soc2Document } = await response.json();
+
+        toast({
+          title: "SOC2 document generated",
+          description: "Transcript-grounded SOC2 draft created for compliance workflows.",
+        });
+
+        const event = new CustomEvent("assetGenerated", {
+          detail: {
+            type: automation.type,
+            title: automation.title,
+            icon: automation.icon,
+            config,
+            soc2Document,
+          },
+        });
+        window.dispatchEvent(event);
+      } else if ((automation.type === "visual-concept-map" || automation.type === "financial-concept-map") && automation.sessionId) {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) {
+          throw new Error("Not authenticated. Please log in.");
+        }
+
+        const API_URL = import.meta.env.VITE_API_URL || "";
+        const response = await fetch(`${API_URL}/api/sessions/${automation.sessionId}/visual-concept-map`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            tone: config.outputTone,
+            audience: config.targetAudience,
+            visualMode: config.visualMode,
+            instructions: config.additionalInstructions,
+          }),
+        });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to generate visual concept map.");
+        }
+
+        const { conceptMap } = await response.json();
+
+        toast({
+          title: "Visual concept map generated",
+          description: "Whiteboard-style concept map image created from this session transcript.",
+        });
+
+        const event = new CustomEvent("assetGenerated", {
+          detail: {
+            type: automation.type,
+            title: automation.title,
+            icon: automation.icon,
+            config,
+            conceptMap,
+          },
+        });
+        window.dispatchEvent(event);
       } else {
         // Other automations not yet wired; keep simulated behavior
         const event = new CustomEvent("assetGenerated", {
@@ -221,6 +314,33 @@ export function ConfigDrawer({ open, onClose, automation }: ConfigDrawerProps) {
               className="h-11 w-full rounded-lg border border-primary/30 bg-input px-4 text-sm text-foreground outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
           </div>
+
+          {(automation.type === "visual-concept-map" || automation.type === "financial-concept-map") && (
+            <div className="mb-6">
+              <label className="mb-2 block text-[0.72rem] font-bold uppercase tracking-[0.1em] text-primary/85">
+                Visual Mode
+              </label>
+              <div className="grid grid-cols-2 gap-1.5 rounded-lg border border-primary/30 bg-input/60 p-1">
+                {(["standard", "illustrative"] as const).map((mode) => {
+                  const active = config.visualMode === mode;
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setConfig({ ...config, visualMode: mode })}
+                      className={`rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] transition-all ${
+                        active
+                          ? "bg-primary text-primary-foreground shadow-elegant"
+                          : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="mb-6">
             <label className="mb-2 block text-[0.72rem] font-bold uppercase tracking-[0.1em] text-primary/85">

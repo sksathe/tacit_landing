@@ -6,6 +6,8 @@ Run these migrations in order in your Supabase SQL Editor:
 2. `02_tables.sql` - Create all tables and indexes
 3. `03_rls.sql` - Set up Row Level Security policies
 4. `04_functions.sql` - Create database functions (fuzzy name matching)
+5. `12_automation_results.sql` - Persist automation outputs per session
+6. `13_automation_results_rls.sql` - RLS policies for automation outputs
 
 ## Storage Bucket Setup
 

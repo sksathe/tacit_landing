@@ -178,36 +178,38 @@ export function GeneratedAssets({
               key={`${asset.type}-${asset.timestamp}-${index}`}
               className="mb-5 animate-[slideIn_0.5s_ease] rounded-2xl border border-primary/35 bg-card/55 p-6 transition-all hover:-translate-y-0.5 hover:shadow-elegant"
             >
-              <div className="mb-5 flex items-start gap-5">
-                <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-3xl">{asset.icon}</div>
-                <div className="flex-1">
-                  <h4 className="mb-1 text-[1.25rem] font-bold text-foreground md:text-[1.4rem]">{asset.title}</h4>
-                  <p className="font-mono text-[0.78rem] text-muted-foreground">Generated: {asset.timestamp}</p>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="flex min-w-0 items-start gap-5">
+                  <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-3xl">{asset.icon}</div>
+                  <div className="min-w-0">
+                    <h4 className="mb-1 text-[1.25rem] font-bold text-foreground md:text-[1.4rem]">{asset.title}</h4>
+                    <p className="font-mono text-[0.78rem] text-muted-foreground">Generated: {asset.timestamp}</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => viewAsset(asset)}
-                  className="rounded-lg bg-primary px-6 py-2.5 text-[0.82rem] font-semibold uppercase tracking-[0.1em] text-primary-foreground transition-all hover:bg-primary-glow hover:shadow-elegant"
-                >
-                  View
-                </button>
-                <button
-                  type="button"
-                  onClick={() => copyAsset(asset)}
-                  className="rounded-lg border border-primary px-6 py-2.5 text-[0.82rem] font-semibold uppercase tracking-[0.1em] text-primary transition-all hover:bg-primary/10"
-                >
-                  {isCopied ? "Copied" : "Copy"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => downloadAsset(asset)}
-                  className="rounded-lg border border-primary px-6 py-2.5 text-[0.82rem] font-semibold uppercase tracking-[0.1em] text-primary transition-all hover:bg-primary/10"
-                >
-                  Download
-                </button>
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => viewAsset(asset)}
+                    className="rounded-lg bg-primary px-6 py-2.5 text-[0.82rem] font-semibold uppercase tracking-[0.1em] text-primary-foreground transition-all hover:bg-primary-glow hover:shadow-elegant"
+                  >
+                    View
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => copyAsset(asset)}
+                    className="rounded-lg border border-primary px-6 py-2.5 text-[0.82rem] font-semibold uppercase tracking-[0.1em] text-primary transition-all hover:bg-primary/10"
+                  >
+                    {isCopied ? "Copied" : "Copy"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => downloadAsset(asset)}
+                    className="rounded-lg border border-primary px-6 py-2.5 text-[0.82rem] font-semibold uppercase tracking-[0.1em] text-primary transition-all hover:bg-primary/10"
+                  >
+                    Download
+                  </button>
+                </div>
               </div>
             </div>
           );

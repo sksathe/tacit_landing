@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { TACIT_AGENTS } from "@/data/agents";
 import { GeneratedAssets } from "./GeneratedAssets";
@@ -6,6 +6,7 @@ import { AutomationOptions } from "./AutomationOptions";
 import type { SessionItem } from "./AutomateSessionsList";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
+const ARTIFACTS_BUCKET = import.meta.env.VITE_SUPABASE_ARTIFACTS_BUCKET || "tacit-artifacts";
 
 /** Summary row from Supabase */
 interface SummaryDetails {
@@ -21,6 +22,7 @@ interface SummaryDetails {
 interface SessionDetails {
   id: string;
   duration_sec?: number | null;
+  recording_path?: string | null;
   started_at?: string | null;
   meeting?: {
     title?: string;
@@ -54,6 +56,13 @@ interface ClarityScore {
   interpretation: string[];
 }
 
+interface PersistedAutomationResult {
+  id: string;
+  automation_type: string;
+  title: string;
+  created_at?: string | null;
+}
+
 interface SessionDetailViewProps {
   session: {
     agentName: string;
@@ -73,6 +82,8 @@ interface SessionDetailViewProps {
   hideBreadcrumb?: boolean;
   /** When true, show only session bar + results (no Step 3 / workspace grid / Automation Studio). */
   compactLayout?: boolean;
+  /** When true, hide the top session strip section. */
+  hideSessionStrip?: boolean;
 }
 
 function formatDateTime(iso: string | undefined): string {
@@ -99,10 +110,67 @@ function formatDuration(sec: number | undefined | null): string {
   return `${h}h ${mins}m`;
 }
 
+function formatClock(sec: number | undefined | null): string {
+  if (sec == null || sec < 0) return "—";
+  const total = Math.floor(sec);
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
 function hasTranscript(details: SessionDetails | null): boolean {
   if (!details?.transcript) return false;
   const t = Array.isArray(details.transcript) ? details.transcript[0] : details.transcript;
   return Boolean(t?.raw);
+}
+
+function resolveStoragePath(rawPath: string | null | undefined): { bucket: string; path: string } | { externalUrl: string } | null {
+  if (!rawPath) return null;
+  const value = String(rawPath).trim();
+  if (!value) return null;
+
+  if (/^https?:\/\//i.test(value)) {
+    return { externalUrl: value };
+  }
+
+  if (value.startsWith(`${ARTIFACTS_BUCKET}/`)) {
+    return { bucket: ARTIFACTS_BUCKET, path: value.slice(ARTIFACTS_BUCKET.length + 1) };
+  }
+
+  const parts = value.split("/");
+  if (parts.length > 1 && /^[a-z0-9._-]+$/i.test(parts[0]) && parts[0] !== "org") {
+    return { bucket: parts[0], path: parts.slice(1).join("/") };
+  }
+
+  return { bucket: ARTIFACTS_BUCKET, path: value };
+}
+
+function normalizeAssetType(type: string): string {
+  if (type === "financial-concept-map") return "visual-concept-map";
+  return type;
+}
+
+function getAssetIcon(type: string): string {
+  switch (normalizeAssetType(type)) {
+    case "soc2-document":
+      return "🛡️";
+    case "compliance-gap-analysis":
+      return "📋";
+    case "summary":
+      return "📄";
+    case "clarity-scorer":
+      return "💎";
+    case "visual-concept-map":
+      return "📈";
+    case "minutes":
+      return "📝";
+    case "finance-faq":
+      return "❓";
+    case "financial-risk-detector":
+      return "⚠️";
+    default:
+      return "✅";
+  }
 }
 
 export function SessionDetailView({
@@ -115,6 +183,7 @@ export function SessionDetailView({
   initialAutomationId,
   hideBreadcrumb = false,
   compactLayout = false,
+  hideSessionStrip = false,
 }: SessionDetailViewProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -125,10 +194,14 @@ export function SessionDetailView({
   const [summaries, setSummaries] = useState<SummaryDetails[]>([]);
   const [isSummaryPanelOpen, setIsSummaryPanelOpen] = useState(initialAutomationId === "summary");
   const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(35);
+  const [progress, setProgress] = useState(0);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioDurationSeconds, setAudioDurationSeconds] = useState<number | null>(null);
+  const [audioElapsedSeconds, setAudioElapsedSeconds] = useState(0);
   const [assets, setAssets] = useState<Array<{ type: string; title: string; icon: string; timestamp: string }>>([]);
   const [clarityScore, setClarityScore] = useState<ClarityScore | null>(null);
   const [expandedDimensionId, setExpandedDimensionId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // When route automation changes (e.g. Summary → Clarity Scorer), clean slate: show summary panel only for "summary", scroll to top
   useEffect(() => {
@@ -136,22 +209,19 @@ export function SessionDetailView({
     window.scrollTo(0, 0);
   }, [initialAutomationId]);
 
-  const navigateToRachelAutomation = (automationId: string) => {
-    // Use dedicated route for Rachel's automations (both when entering from dashboard and when switching automation on the route).
-    if (session.agentName === "Rachel") {
-      const agent = TACIT_AGENTS.find((a) => a.name === session.agentName);
-      const agentId = agent?.id ?? session.agentName.toLowerCase();
+  const navigateToAutomationRoute = (automationId: string) => {
+    // Use the full automation route for all agents by default.
+    const agent = TACIT_AGENTS.find((a) => a.name === session.agentName);
+    const agentId = agent?.id ?? session.agentName.toLowerCase();
 
-      navigate(`/dashboard/${agentId}/${automationId}/${session.sessionId}`, {
-        state: {
-          session,
-          sessionsForAgent: sessions,
-        },
-        replace: isAutomationRoute, // when already on route, replace so back doesn't cycle through automations
-      });
-      return true;
-    }
-    return false;
+    navigate(`/dashboard/${agentId}/${automationId}/${session.sessionId}`, {
+      state: {
+        session,
+        sessionsForAgent: sessions,
+      },
+      replace: isAutomationRoute, // when already on route, replace so back doesn't cycle through automations
+    });
+    return true;
   };
 
   useEffect(() => {
@@ -181,6 +251,136 @@ export function SessionDetailView({
     }
 
     loadDetails();
+    return () => { cancelled = true; };
+  }, [session.sessionId]);
+
+  // Resolve recording_path from session details into a signed playable URL.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRecordingUrl() {
+      setAudioUrl(null);
+      setAudioDurationSeconds(null);
+      setAudioElapsedSeconds(0);
+      setProgress(0);
+      setIsPlaying(false);
+
+      const target = resolveStoragePath(sessionDetails?.recording_path);
+      if (!target) return;
+      if ("externalUrl" in target) {
+        if (!cancelled) setAudioUrl(target.externalUrl);
+        return;
+      }
+
+      try {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data: { session: authSession } } = await supabase.auth.getSession();
+        if (!authSession || cancelled) return;
+
+        const res = await fetch(`${API_URL}/api/sessions/${session.sessionId}/recording-url`, {
+          headers: {
+            Authorization: `Bearer ${authSession.access_token}`,
+          },
+        });
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (!cancelled) {
+          const resolved = data?.recordingUrl || data?.url || null;
+          setAudioUrl(typeof resolved === "string" ? resolved : null);
+        }
+      } catch {
+        if (!cancelled) {
+          setAudioUrl(null);
+        }
+      }
+    }
+
+    loadRecordingUrl();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionDetails?.recording_path]);
+
+  // Bind audio element events to player state.
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const onLoadedMetadata = () => {
+      if (Number.isFinite(audio.duration) && audio.duration > 0) {
+        setAudioDurationSeconds(Math.round(audio.duration));
+      }
+    };
+    const onTimeUpdate = () => {
+      const elapsed = Number.isFinite(audio.currentTime) ? Math.round(audio.currentTime) : 0;
+      const total = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 0;
+      setAudioElapsedSeconds(elapsed);
+      setProgress(total > 0 ? (audio.currentTime / total) * 100 : 0);
+    };
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    const onEnded = () => {
+      setIsPlaying(false);
+      setProgress(100);
+    };
+
+    audio.addEventListener("loadedmetadata", onLoadedMetadata);
+    audio.addEventListener("timeupdate", onTimeUpdate);
+    audio.addEventListener("play", onPlay);
+    audio.addEventListener("pause", onPause);
+    audio.addEventListener("ended", onEnded);
+
+    return () => {
+      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
+      audio.removeEventListener("timeupdate", onTimeUpdate);
+      audio.removeEventListener("play", onPlay);
+      audio.removeEventListener("pause", onPause);
+      audio.removeEventListener("ended", onEnded);
+    };
+  }, [audioUrl]);
+
+  // Load persisted automation assets for this session.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPersistedAssets() {
+      try {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data: { session: authSession } } = await supabase.auth.getSession();
+        if (!authSession || cancelled) return;
+
+        const res = await fetch(`${API_URL}/api/sessions/${session.sessionId}/automation-results`, {
+          headers: { Authorization: `Bearer ${authSession.access_token}` },
+        });
+        if (!res.ok || cancelled) return;
+
+        const data = await res.json();
+        const list: PersistedAutomationResult[] = Array.isArray(data.results) ? data.results : [];
+        if (cancelled) return;
+
+        setAssets(
+          list.map((item) => ({
+            type: normalizeAssetType(item.automation_type),
+            title: item.title || "Generated Asset",
+            icon: getAssetIcon(item.automation_type),
+            timestamp: item.created_at
+              ? new Date(item.created_at).toLocaleString("en-US", {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                  hour12: true,
+                })
+              : "Unknown time",
+          }))
+        );
+      } catch {
+        // Ignore fetch failures; UI continues with in-memory generated assets.
+      }
+    }
+
+    loadPersistedAssets();
     return () => { cancelled = true; };
   }, [session.sessionId]);
 
@@ -278,20 +478,43 @@ export function SessionDetailView({
   }, []);
 
   const togglePlayPause = () => {
-    setIsPlaying(!isPlaying);
+    const audio = audioRef.current;
+    if (!audio || !audioUrl) return;
+    if (audio.paused) {
+      void audio.play();
+    } else {
+      audio.pause();
+    }
   };
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const audio = audioRef.current;
+    if (!audio) return;
     const progressBar = e.currentTarget;
     const clickPosition = e.nativeEvent.offsetX;
     const barWidth = progressBar.offsetWidth;
     const percentage = (clickPosition / barWidth) * 100;
+    const total = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 0;
+    if (total > 0) {
+      audio.currentTime = (percentage / 100) * total;
+    }
     setProgress(percentage);
   };
 
   const transcriptAvailable = hasTranscript(sessionDetails);
+  const totalDurationSeconds =
+    audioDurationSeconds != null && audioDurationSeconds > 0
+      ? audioDurationSeconds
+      : sessionDetails?.duration_sec != null && sessionDetails.duration_sec > 0
+        ? sessionDetails.duration_sec
+        : null;
+  const elapsedSeconds = audioElapsedSeconds > 0 ? audioElapsedSeconds : totalDurationSeconds != null ? Math.round((progress / 100) * totalDurationSeconds) : 0;
 
-  const handleViewGeneratedAsset = (asset: { type: string }) => {
+  const handleViewGeneratedAsset = (asset: { type: string; title?: string; icon?: string }) => {
+    const normalizedType = normalizeAssetType(asset.type);
+    const navigated = navigateToAutomationRoute(normalizedType);
+    if (navigated) return;
+
     if (asset.type === "summary") {
       setIsSummaryPanelOpen(true);
       setTimeout(() => {
@@ -305,6 +528,8 @@ export function SessionDetailView({
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "start" });
       }
+    } else if (asset.title && asset.icon) {
+      onOpenConfigDrawer(normalizedType, asset.title, asset.icon);
     }
   };
 
@@ -394,6 +619,7 @@ export function SessionDetailView({
         </div>
       )}
 
+      {!hideSessionStrip && (
       <section className={compactLayout ? "mb-4 flex flex-wrap items-center gap-4 rounded-lg border border-primary/20 bg-card/40 px-4 py-3" : "mb-4 rounded-xl border border-primary/25 bg-card/55 p-4"}>
         {compactLayout ? (
           <>
@@ -478,6 +704,7 @@ export function SessionDetailView({
           </>
         )}
       </section>
+      )}
 
       {detailsError && (
         <div className="mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm">
@@ -492,33 +719,46 @@ export function SessionDetailView({
             <div className="py-8 text-center text-sm text-muted-foreground">Loading session details…</div>
           ) : (
             <>
-              <div className="mb-4 flex items-start justify-between border-b border-primary/20 pb-4">
-                <div>
-                  <h2 className="mb-1 text-lg font-extrabold text-foreground sm:text-[1.25rem]">
-                    {sessionDetails?.meeting?.title ?? session.sessionName}
-                  </h2>
-                  <p className="font-mono text-xs text-muted-foreground">Session ID: {session.sessionId}</p>
+              <div className="mb-4 rounded-lg border border-primary/20 bg-black/25 px-4 py-3">
+                <div className="mb-2 inline-flex rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-[0.1em] text-primary">
+                  Session Overview
+                </div>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="mb-1 text-lg font-extrabold text-foreground sm:text-[1.25rem]">
+                      {sessionDetails?.meeting?.title ?? session.sessionName}
+                    </h2>
+                    <p className="font-mono text-xs text-muted-foreground">
+                      Date & Time: {formatDateTime(sessionDetails?.meeting?.scheduled_start_at)}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="rounded-full border border-primary/35 bg-primary/10 px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-[0.1em] text-primary">
+                      {session.agentName}
+                    </span>
+                    <span
+                      className={`rounded-full border px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-[0.1em] ${
+                        transcriptAvailable
+                          ? "border-primary/35 bg-primary/10 text-primary"
+                          : "border-amber-500/35 bg-amber-500/10 text-amber-500"
+                      }`}
+                    >
+                      {transcriptAvailable ? "Transcript ready" : "Transcript missing"}
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
-                <div className="rounded-lg border border-primary/20 bg-background/45 p-3">
+              <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-12">
+                <div className="rounded-lg border border-primary/20 bg-background/45 p-3 sm:col-span-2 xl:col-span-8">
                   <div className="text-[0.6rem] font-bold uppercase tracking-[0.1em] text-primary/80">
-                    Agent Name
-                  </div>
-                  <div className="mt-0.5 text-sm font-medium text-foreground">
-                    {sessionDetails?.meeting?.agent_name ?? session.agentName ?? "—"}
-                  </div>
-                </div>
-                <div className="rounded-lg border border-primary/20 bg-background/45 p-3">
-                  <div className="text-[0.6rem] font-bold uppercase tracking-[0.1em] text-primary/80">
-                    Topic
+                    Agenda
                   </div>
                   <div className="mt-0.5 text-sm font-medium text-foreground">
                     {sessionDetails?.meeting?.agenda?.trim() || "No agenda provided"}
                   </div>
                 </div>
-                <div className="rounded-lg border border-primary/20 bg-background/45 p-3">
+                <div className="rounded-lg border border-primary/20 bg-background/45 p-3 sm:col-span-2 xl:col-span-4">
                   <div className="text-[0.6rem] font-bold uppercase tracking-[0.1em] text-primary/80">
                     Invited Parties
                   </div>
@@ -528,51 +768,51 @@ export function SessionDetailView({
                       : "—"}
                   </div>
                 </div>
-                <div className="rounded-lg border border-primary/20 bg-background/45 p-3">
-                  <div className="text-[0.6rem] font-bold uppercase tracking-[0.1em] text-primary/80">
-                    Date & Time
-                  </div>
-                  <div className="mt-0.5 text-sm font-medium text-foreground">
-                    {formatDateTime(sessionDetails?.meeting?.scheduled_start_at)}
-                  </div>
-                </div>
-                <div className="rounded-lg border border-primary/20 bg-background/45 p-3">
-                  <div className="text-[0.6rem] font-bold uppercase tracking-[0.1em] text-primary/80">
-                    Duration
-                  </div>
-                  <div className="mt-0.5 text-sm font-medium text-foreground">
-                    {formatDuration(sessionDetails?.duration_sec ?? undefined)}
-                  </div>
-                </div>
+
               </div>
 
-              <div className="rounded-xl border border-primary/20 bg-black/35 p-4 text-center md:p-5">
-                <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="rounded-xl border border-primary/20 bg-black/35 p-4 md:p-5">
+                <audio
+                  key={audioUrl || "no-audio"}
+                  ref={audioRef}
+                  src={audioUrl ?? undefined}
+                  preload="metadata"
+                />
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                   <span className="text-[0.65rem] font-bold uppercase tracking-[0.1em] text-primary/80">Playback</span>
-                  <span className="text-[0.65rem] font-medium uppercase tracking-[0.1em] text-muted-foreground">Notebook mode</span>
-                </div>
-                <button
-                  onClick={togglePlayPause}
-                  className="mx-auto mb-4 flex h-16 w-16 cursor-pointer items-center justify-center rounded-full border border-primary/25 bg-gradient-primary text-2xl text-primary-foreground shadow-elegant transition-all hover:scale-105 hover:shadow-glow"
-                >
-                  {isPlaying ? "⏸" : "▶"}
-                </button>
-                <div className="mx-auto flex max-w-[520px] items-center gap-3">
-                  <span className="font-mono text-xs text-muted-foreground">0:00</span>
-                  <div
-                    onClick={handleSeek}
-                    className="h-2 flex-1 cursor-pointer overflow-hidden rounded-full bg-primary/20"
-                  >
-                    <div
-                      className="h-full bg-primary transition-all duration-300"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {sessionDetails?.duration_sec != null
-                      ? `${Math.floor(sessionDetails.duration_sec / 60)}:${String(sessionDetails.duration_sec % 60).padStart(2, "0")}`
-                      : "—"}
+                  <span className="rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5 text-[0.58rem] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                    Notebook mode
                   </span>
+                </div>
+
+                <div className="flex justify-center">
+                  <div className="text-center">
+                    <button
+                      onClick={togglePlayPause}
+                      disabled={!audioUrl}
+                      className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-primary/25 text-2xl text-primary-foreground shadow-elegant transition-all ${
+                        audioUrl
+                          ? "cursor-pointer bg-gradient-primary hover:scale-105 hover:shadow-glow"
+                          : "cursor-not-allowed bg-primary/30 opacity-60"
+                      }`}
+                    >
+                      {isPlaying ? "⏸" : "▶"}
+                    </button>
+
+                    <div className="mx-auto flex max-w-[520px] items-center gap-3">
+                      <span className="font-mono text-xs text-muted-foreground">{formatClock(elapsedSeconds)}</span>
+                      <div
+                        onClick={handleSeek}
+                        className="h-2 flex-1 cursor-pointer overflow-hidden rounded-full bg-primary/20"
+                      >
+                        <div
+                          className="h-full bg-primary transition-all duration-300"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      <span className="font-mono text-xs text-muted-foreground">{formatClock(totalDurationSeconds)}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </>
@@ -580,22 +820,15 @@ export function SessionDetailView({
         </div>
 
         <div className="self-start space-y-4 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7.2rem)] xl:overflow-y-auto xl:pr-1">
-          <GeneratedAssets
-            assets={assets}
-            onViewAsset={handleViewGeneratedAsset}
-            resolveAssetContent={resolveGeneratedAssetContent}
-            variant="compact"
-          />
-
           <AutomationOptions
             onOpenConfigDrawer={(type, title, icon) => {
-              const handled = navigateToRachelAutomation(type);
+              const handled = navigateToAutomationRoute(type);
               if (!handled) {
                 onOpenConfigDrawer(type, title, icon);
               }
             }}
             onOpenSummaryPanel={() => {
-              const handled = navigateToRachelAutomation("summary");
+              const handled = navigateToAutomationRoute("summary");
               if (!handled) {
                 setIsSummaryPanelOpen(true);
               }
@@ -828,17 +1061,28 @@ export function SessionDetailView({
         </div>
       )}
 
+      {!compactLayout && assets.length > 0 && (
+        <div className="mb-10">
+          <GeneratedAssets
+            assets={assets}
+            onViewAsset={handleViewGeneratedAsset}
+            resolveAssetContent={resolveGeneratedAssetContent}
+            variant="full"
+          />
+        </div>
+      )}
+
       {compactLayout && (
         <div className="mt-10 rounded-xl border border-primary/25 bg-card/55 p-4">
           <AutomationOptions
             onOpenConfigDrawer={(type, title, icon) => {
-              const handled = navigateToRachelAutomation(type);
+              const handled = navigateToAutomationRoute(type);
               if (!handled) {
                 onOpenConfigDrawer(type, title, icon);
               }
             }}
             onOpenSummaryPanel={() => {
-              const handled = navigateToRachelAutomation("summary");
+              const handled = navigateToAutomationRoute("summary");
               if (!handled) {
                 setIsSummaryPanelOpen(true);
               }

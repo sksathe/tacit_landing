@@ -54,12 +54,12 @@ export function AutomationOptions({
             category: "documentation",
           },
           {
-            id: "financial-concept-map",
+            id: "visual-concept-map",
             icon: "📈",
-            title: "Financial Concept Map",
+            title: "Visual Concept Map",
             description:
-              "Automatically organizes the discussion into core financial domains with citation-backed nodes and a navigable knowledge graph.",
-            category: "finance",
+              "Turns any transcript into a whiteboard-style visual concept map with labeled sections, flow arrows, and actionable callouts.",
+            category: "core",
             recommended: true,
           },
           {
@@ -88,6 +88,56 @@ export function AutomationOptions({
             category: "finance",
           },
         ]
+      : agentName === "Ross"
+        ? [
+            {
+              id: "soc2-document",
+              icon: "🛡️",
+              title: "SOC2 Document",
+              description: "Generate SOC 2-oriented control documentation and evidence-ready policy sections from the transcript.",
+              category: "core",
+              recommended: true,
+            },
+            {
+              id: "compliance-gap-analysis",
+              icon: "📋",
+              title: "Compliance Gap Analysis",
+              description: "Identify control gaps, missing evidence, and remediation priorities mapped to compliance expectations.",
+              category: "analysis",
+              recommended: true,
+            },
+            {
+              id: "visual-concept-map",
+              icon: "📈",
+              title: "Visual Concept Map",
+              description:
+                "Create a whiteboard-style visual concept map from the transcript with structure, pain points, solutions, and next steps.",
+              category: "insights",
+              recommended: true,
+            },
+            {
+              id: "summary",
+              icon: "📄",
+              title: "Generate Summary",
+              description: "Create an executive summary of the session with key takeaways and action items.",
+              category: "core",
+            },
+            {
+              id: "minutes",
+              icon: "📝",
+              title: "Meeting Minutes",
+              description: "Generate formal meeting minutes with attendees, discussions, and resolutions.",
+              category: "documentation",
+            },
+            {
+              id: "clarity-scorer",
+              icon: "💎",
+              title: "Clarity Scorer",
+              description:
+                "Judges how clearly the conversation explains controls, ownership, and governance with scored dimensions.",
+              category: "analysis",
+            },
+          ]
       : [
           {
             id: "summary",
@@ -102,6 +152,15 @@ export function AutomationOptions({
             icon: "📊",
             title: "Extract Insights",
             description: "AI-powered analysis to identify patterns, themes, and critical insights from the conversation.",
+            category: "insights",
+            recommended: true,
+          },
+          {
+            id: "visual-concept-map",
+            icon: "📈",
+            title: "Visual Concept Map",
+            description:
+              "Create a whiteboard-style visual concept map from the transcript with structure, pain points, solutions, and next steps.",
             category: "insights",
             recommended: true,
           },

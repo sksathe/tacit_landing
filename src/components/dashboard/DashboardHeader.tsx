@@ -31,7 +31,7 @@ export function DashboardHeader() {
   const userInitial = user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U";
 
   return (
-    <header className="sticky top-0 z-[1000] border-b border-primary/20 bg-background/90 px-3 py-2.5 backdrop-blur-md sm:px-6">
+    <header className="sticky top-0 z-[1000] border-b border-primary/20 bg-background/95 px-3 py-2.5 sm:px-6">
       <nav className="mx-auto flex max-w-[1700px] items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-primary">
           <span className="flex h-7 w-7 items-center justify-center text-primary">
@@ -79,7 +79,7 @@ export function DashboardHeader() {
             </button>
 
             {isDropdownOpen && (
-              <div className="absolute right-0 top-[2.6rem] z-[1000] min-w-[150px] overflow-hidden rounded-lg border border-primary/30 bg-card/95 py-1 shadow-elegant backdrop-blur-md">
+              <div className="absolute right-0 top-[2.6rem] z-[1000] min-w-[150px] overflow-hidden rounded-lg border border-primary/30 bg-card/95 py-1 shadow-elegant">
                 <button
                   type="button"
                   onClick={handleLogout}
