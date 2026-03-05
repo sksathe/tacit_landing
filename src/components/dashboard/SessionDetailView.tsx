@@ -130,9 +130,15 @@ export function SessionDetailView({
   const [clarityScore, setClarityScore] = useState<ClarityScore | null>(null);
   const [expandedDimensionId, setExpandedDimensionId] = useState<string | null>(null);
 
+  // When route automation changes (e.g. Summary → Clarity Scorer), clean slate: show summary panel only for "summary", scroll to top
+  useEffect(() => {
+    setIsSummaryPanelOpen(initialAutomationId === "summary");
+    window.scrollTo(0, 0);
+  }, [initialAutomationId]);
+
   const navigateToRachelAutomation = (automationId: string) => {
-    // For now, only create dedicated routes for Rachel's automations.
-    if (session.agentName === "Rachel" && !isAutomationRoute) {
+    // Use dedicated route for Rachel's automations (both when entering from dashboard and when switching automation on the route).
+    if (session.agentName === "Rachel") {
       const agent = TACIT_AGENTS.find((a) => a.name === session.agentName);
       const agentId = agent?.id ?? session.agentName.toLowerCase();
 
@@ -141,6 +147,7 @@ export function SessionDetailView({
           session,
           sessionsForAgent: sessions,
         },
+        replace: isAutomationRoute, // when already on route, replace so back doesn't cycle through automations
       });
       return true;
     }
